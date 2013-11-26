@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8">
   
-  <title>归档：2013 | 浅水游鱼</title>
+  <title>markdown语法简介 | 浅水游鱼</title>
   <meta name="author" content="NearMeng">
+  
+  <meta name="description" content="已经好久没有开始写博客了，自从上次的博客域名expire之后，就没有了写博客的冲动。最近，突然又想拾起笔来，重新做人:) 于是就开始找寻可以记录信息的地方，大大小小的博客网站虽然多，但是能够还自己一份安宁的地方却是少之又少，就在偶然的查找资料的过程中，我发现了 scriptogr.am 这个网站，可">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  
+  <meta property="og:title" content="markdown语法简介"/>
   <meta property="og:site_name" content="浅水游鱼"/>
 
   
@@ -43,88 +45,7 @@
 </nav>
 <div class="clearfix"></div></header>
   <div id="content" class="inner">
-    <div id="main-col" class="alignleft"><div id="wrapper">
-<h2 class="archive-title">2013</h2>
-
-
-  
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-11-26T03:22:15.000Z"><a href="/2013/11/26/git使用简介/">11月 26 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/11/26/git使用简介/">git使用介绍</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h1>1、安装</h1>
-<p>首先下载git软件安装，<a href="https://code.google.com/p/msysgit/downloads/list" target="_blank">点此下载</a>。</p>
-<p>在安装完git之后，打开Git Bash的快捷方式，进入命令行模式。</p>
-<h1>2、配置</h1>
-<p>首先我们需要创建一个git仓库的文件夹。</p>
-<pre><code><span class="title">mkdir</span> git</code></pre>
-<p>接着创建一个你的工程文件夹，例如是project.</p>
-<pre><code><span class="title">cd</span> git &amp;&amp; mkdir project</code></pre>
-<p>然后我们进入git文件夹，进行初始化操作。</p>
-<pre><code><span class="title">cd</span> git
-<span class="title">git</span> init
-<span class="title">git</span> config <span class="comment">--global user.name "yourname"</span>
-<span class="title">git</span> config <span class="comment">--global user.email "youremail"</span></code></pre>
-<p>此时将会在你的git文件夹下生成.git文件，该文件的作用是将会对你上传的代码文件进行取舍，将一些调试用的文件排除。</p>
-<h1>3、下载</h1>
-<p>此后，可以进入你的project文件夹，根据远程git仓库的地址，clone一组代码回来。</p>
-<pre><code>git clone https://git.oschina.net/<span class="keyword">...</span>/...git</code></pre>
-<p>或者你可以把你的文件放在project文件夹下，然后，和远端git仓库中的代码进行合并。</p>
-<pre><code>git pull https://git.oschina.net/<span class="keyword">...</span>/...git</code></pre>
-<h1>4、上传</h1>
-<p>当你修改完你project中的文件后，你需要首先将你的改动提交到你的本地的仓库中。</p>
-<pre><code><span class="comment">git</span> <span class="comment">add</span> <span class="string">.</span>
-<span class="comment">git</span> <span class="comment">commit</span> <span class="literal">-</span><span class="comment">m</span> <span class="comment">"your</span> <span class="comment">comments"</code></pre>
-<p>然后就可以push到你的远程的仓库中（在这之前，首先需要增加一个远程仓库的位置）。</p>
-<pre><code>git remote add origin https://git.oschina.net/<span class="keyword">...</span>/...git
-git push -u origin master</code></pre>
-<p>此后，会让你填写你的git@osc的用户名和密码。</p>
-<h1>5、注意及其他</h1>
-<h2>5.1 需要更改你的分支名</h2>
-<p>一般你的文件夹下你的分支名是master，而如果你要更改分支名的话。使用以下命令。</p>
-<pre><code>git branch <span class="comment">/* 查看当前的分支 */</span>
-git branch hello <span class="comment">/* 创建一个名为hello的分支 */</span>
-git checkout hello <span class="comment">/* 将当前的分支改为hello分支 */</span></code></pre>
-<h2>5.2 git 报错</h2>
-<h4>（错误1） Updates were rejected because the tip of your current branch is behind its remote counterpart. Merge the remote changes （e.g. “”git pull“”） before pushing again.</h4>
-<p>解决方法： 首先在当前的project下，进行一次</p>
-<pre><code>git pull  https://git.oschina.net/<span class="keyword">...</span>/...git</code></pre>
-<p>然后再进行commit以及push操作。</p>
-<h4>（错误2） warning: LF will be replaced by CRLF</h4>
-<p>解决方法： 这是由于Windows和Linux的文件结束符不一致导致的。需要删除.git，并重新配置。</p>
-<pre><code><span class="comment">rm</span> <span class="literal">-</span><span class="comment">rf</span> <span class="string">.</span><span class="comment">git</span>  
-<span class="comment">git</span> <span class="comment">config</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">gobal</span> <span class="comment">core</span>.<span class="comment">autocrlf</span> <span class="comment">false</code></pre>
-<p>接着就可以重新 init 了。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
-    <article class="post">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
   
   <div class="post-content">
     <header>
@@ -134,7 +55,7 @@ git checkout hello <span class="comment">/* 将当前的分支改为hello分支 
       
       
   
-    <h1 class="title"><a href="/2013/11/26/markdown语法简介/">markdown语法简介</a></h1>
+    <h1 class="title">markdown语法简介</h1>
   
 
     </header>
@@ -186,7 +107,33 @@ git checkout hello <span class="comment">/* 将当前的分支改为hello分支 
     <footer>
       
         
+  
+  <div class="categories">
+    <a href="/categories/2013-11/">2013-11</a>
+  </div>
+
         
+  
+  <div class="tags">
+    <a href="/tags/markdown/">markdown</a>
+  </div>
+
+		<!-- Baidu Button BEGIN -->
+		<div id="bdshare" class="bdshare_t bds_tools get-codes-bdshare">
+		<span class="bds_more">分享到：</span>
+		<a class="bds_qzone"></a>
+		<a class="bds_tsina"></a>
+		<a class="bds_tqq"></a>
+		<a class="bds_renren"></a>
+		<a class="bds_t163"></a>
+		<a class="shareCount"></a>
+		</div>
+		<script type="text/javascript" id="bdshare_js" data="type=tools&amp;uid=2408918" ></script>
+		<script type="text/javascript" id="bdshell_js"></script>
+		<script type="text/javascript">
+		document.getElementById("bdshell_js").src = "http://bdimg.share.baidu.com/static/js/shell_v2.js?cdnversion=" + Math.ceil(new Date()/3600000)
+		</script>
+		<!-- Baidu Button END -->
       
       <div class="clearfix"></div>
     </footer>
@@ -194,85 +141,24 @@ git checkout hello <span class="comment">/* 将当前的分支改为hello分支 
 </article>
 
 
+<section id="comment">
+<!-- Duoshuo Comment BEGIN -->
+	<div class="ds-thread"></div>
+	<script type="text/javascript">
+	var duoshuoQuery = {short_name:"nearmeng"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = 'http://static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		|| document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- Duoshuo Comment END -->
+</section>
 
 
-  
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-11-26T02:51:20.000Z"><a href="/2013/11/26/测试文章/">11月 26 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/11/26/测试文章/">测试文章</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>这是一片测试文档，看看效果。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-11-25T13:46:15.000Z"><a href="/2013/11/25/hello-world/">11月 25 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/11/25/hello-world/">hexo+github创建新博客</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>Hexo页面介绍地址: <a href="http://zespia.tw/hexo" target="_blank">Hexo</a>! </p>
-<p>The doc of hexo is <a href="http://zespia.tw/hexo/docs" target="_blank">here</a>.</p>
-<p>And now I can edit the blog through vim and some simple command. Happy to see this!</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
-
-  <nav id="pagination">
-  
-  
-  <div class="clearfix"></div>
-</nav>
 </div></div>
     <aside id="sidebar" class="alignright">
   <div class="search">
