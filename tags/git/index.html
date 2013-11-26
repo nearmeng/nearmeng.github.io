@@ -6,6 +6,8 @@
   <title>git | 浅水游鱼</title>
   <meta name="author" content="NearMeng">
   
+  <meta name="description" content="学习娱乐的栖息地">
+  
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -77,41 +79,15 @@
 <span class="title">git</span> init
 <span class="title">git</span> config <span class="comment">--global user.name "yourname"</span>
 <span class="title">git</span> config <span class="comment">--global user.email "youremail"</span></code></pre>
-<p>此时将会在你的git文件夹下生成.git文件，该文件的作用是将会对你上传的代码文件进行取舍，将一些调试用的文件排除。</p>
-<h1>3、下载</h1>
-<p>此后，可以进入你的project文件夹，根据远程git仓库的地址，clone一组代码回来。</p>
-<pre><code>git clone https://git.oschina.net/<span class="keyword">...</span>/...git</code></pre>
-<p>或者你可以把你的文件放在project文件夹下，然后，和远端git仓库中的代码进行合并。</p>
-<pre><code>git pull https://git.oschina.net/<span class="keyword">...</span>/...git</code></pre>
-<h1>4、上传</h1>
-<p>当你修改完你project中的文件后，你需要首先将你的改动提交到你的本地的仓库中。</p>
-<pre><code><span class="comment">git</span> <span class="comment">add</span> <span class="string">.</span>
-<span class="comment">git</span> <span class="comment">commit</span> <span class="literal">-</span><span class="comment">m</span> <span class="comment">"your</span> <span class="comment">comments"</code></pre>
-<p>然后就可以push到你的远程的仓库中（在这之前，首先需要增加一个远程仓库的位置）。</p>
-<pre><code>git remote add origin https://git.oschina.net/<span class="keyword">...</span>/...git
-git push -u origin master</code></pre>
-<p>此后，会让你填写你的git@osc的用户名和密码。</p>
-<h1>5、注意及其他</h1>
-<h2>5.1 需要更改你的分支名</h2>
-<p>一般你的文件夹下你的分支名是master，而如果你要更改分支名的话。使用以下命令。</p>
-<pre><code>git branch <span class="comment">/* 查看当前的分支 */</span>
-git branch hello <span class="comment">/* 创建一个名为hello的分支 */</span>
-git checkout hello <span class="comment">/* 将当前的分支改为hello分支 */</span></code></pre>
-<h2>5.2 git 报错</h2>
-<h4>（错误1） Updates were rejected because the tip of your current branch is behind its remote counterpart. Merge the remote changes （e.g. “”git pull“”） before pushing again.</h4>
-<p>解决方法： 首先在当前的project下，进行一次</p>
-<pre><code>git pull  https://git.oschina.net/<span class="keyword">...</span>/...git</code></pre>
-<p>然后再进行commit以及push操作。</p>
-<h4>（错误2） warning: LF will be replaced by CRLF</h4>
-<p>解决方法： 这是由于Windows和Linux的文件结束符不一致导致的。需要删除.git，并重新配置。</p>
-<pre><code><span class="comment">rm</span> <span class="literal">-</span><span class="comment">rf</span> <span class="string">.</span><span class="comment">git</span>  
-<span class="comment">git</span> <span class="comment">config</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">gobal</span> <span class="comment">core</span>.<span class="comment">autocrlf</span> <span class="comment">false</code></pre>
-<p>接着就可以重新 init 了。</p>
-
+<p>此时将会在你的git文件夹下生成.git文件，该文件的作用是将会对你上传的代码文件进行取舍，将一些调试用的文件排除。<br>
       
     </div>
     <footer>
       
+        
+          <div class="alignleft">
+            <a href="/2013/11/26/git使用简介/#more" class="more-link">Read More</a>
+          </div>
         
         
       
