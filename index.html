@@ -70,122 +70,12 @@
 $ cat vpsee.<span class="keyword">log</span> 
 important <span class="keyword">log</span> <span class="keyword">file</span> <span class="keyword">for</span> vpsee.com </code></pre>
 <p>$ rm vpsee.log如果能记住刚才删除文件中的某个关键字的话可以用 grep 搜索整个 /dev/sda1，-a 标志位的意思是把 /dev/sda1 这个分区看成是文本形式的（分区本身是二进制形式的），-B 10 -A 100 的意思是如果找到关键字就打印出其前10行和后100行的内容： </p>
-<pre><code><span class="comment">#</span> <span class="comment">grep</span> <span class="literal">-</span><span class="comment">a</span> <span class="literal">-</span><span class="comment">B</span> <span class="comment">10</span> <span class="literal">-</span><span class="comment">A</span> <span class="comment">100</span> <span class="comment">'vpsee</span>.<span class="comment">com'</span> <span class="comment">/dev/sda1</span> &gt; <span class="comment">tmp</span>.<span class="comment">txt</code></pre>
+<pre><code><span class="comment">grep</span> <span class="literal">-</span><span class="comment">a</span> <span class="literal">-</span><span class="comment">B</span> <span class="comment">10</span> <span class="literal">-</span><span class="comment">A</span> <span class="comment">100</span> <span class="comment">'vpsee</span>.<span class="comment">com'</span> <span class="comment">/dev/sda1</span> &gt; <span class="comment">tmp</span>.<span class="comment">txt</code></pre>
 <p>在一堆 @ 之间可以找到我们刚才删除的内容： </p>
 <pre><code><span class="variable">$ </span>vi tmp.txt </code></pre>
 <p>…<br>@$^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@Ç^@^@^@^A^@^@^@^@^@^@^@^@^@^@^@È^K^@^@^@<br>^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@^Q^@^@^@^C^@^@^@^@^@^@^@^@^@^@^@È^K^@^@×^@<br>^@^@important log file for vpsee.com<br>@<br>@<br>…</p>
 <p>当然，如果误删了二进制、doc、png/jpg/gif 之类的文件，可以用一些第三方 ext2/ext3 文件恢复工具帮助恢复文件，比如 TestDisk, PhotoRec 等。</p>
 
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-12-17T13:43:38.000Z"><a href="/2013/12/17/shell编程基础练习.md/">12月 17 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/12/17/shell编程基础练习.md/"></a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>title: shell编程基础练习
-date: 2013-12-11 14:29:09
-categories: 2013-12</p>
-
-<h2>tags: [shell,linux]</h2>
-
-<p>shell作为一个人机交互的接口,在Linux中发挥着很大的作用，而shell编程则是减轻系统工程师工作的利器，这里总结一下shell编程的主要内容（趁着程序运行的空档）.</p>
-
-<p>本文的基本结构是shell编程的基本命令和常用的实例。</p>
-
-<h2>命令篇</h2>
-
-<h3>环境变量</h3>
-
-<p>环境变量指的是当shell运行后，系统默认给shell传递的变量。   </p>
-
-<pre><code>$pwd:显示当前路径    
-$?:
-</code></pre>
-
-<h3>文件和目录操作</h3>
-
-<p>文件操作的主要命令有：    </p>
-
-<pre><code>cd:切换目录
-ls:列出目录下文件 通常含有 -a(隐藏文件) -l(文件权限)
-mkdir,rmdir:创建，删除目录
-cp,mv,rm:拷贝，移动，删除文件或者目录(rm在删除目录时需要加-rf)
-ln:建立硬链接(ln -s可以建立符号链接)
-chmod:改变文件权限
-//chmod 对文件权限的改变方式有两种：符号方法和八进制方法
-//所谓符号方法就是采用(who)(action)(permissions)来描述对对权限的操作
-//这里who的选择有:u g o a,分别表示属主，组，其他和所有用户
-//这里action的选择有：+ - =，分别表示增加，减少和设定文件权限。
-//这里permision的选择有:r w x t s,分别表示读，写，执行，粘滞位和SGID位
-//所以给个例子 chmod a+x hello.c 意思就是对hello文件的所有人增加执行权限
-//而所谓八进制的方法则是对每种权限用一个数字进行表示，读4写2执行1,对所有用户生效。
-//同样举个例子 chmod 777 hello.c 意思是任何人可以进行任何操作
-chown:改变文件的属主 -R(递归改变该文件夹内多有文件的属主)
-//这里给出用法 chown *user:group files*
-chgrp:改变文件所属的组 同样可以使用上述的-R
-//这里给出用户 chgrp *group files*
-</code></pre>
-
-<h3>输入输出和进程操作</h3>
-
-<p>输入输出是使用命令过程中放入和产生的数据，对文件的输出可以使用最简单的echo和printf来进行，但是这两个命令只能将文件输出到终端上，为了保留我们想要的数据，需要将数据存储进文件的时候，就需要用重定向命令了，重定向命令很简单，按照cmd > files 即可，但是这会让每次重定向时将原来的数据冲掉，所以可以使用 cmd >> files命令在文件尾部进行追加。</p>
-
-<p>同时，对输入输出的描述还可以使用0,1,2进行简化描述，其中0代表标准输入STDIN，1表示标准输出STDOUT，2表示标准错误STDERR，因此在操作时可以利用0 1 2 进行简化表示。</p>
-
-<p>另外，还需要注意的是命令的输出可以作为另一个命令的输入，采用|管道命令实现。这是因为每个命令都是一个进程在运行，而使用管道后，其实后一个命令是前一个进程的子进程，这样管道实际上起着进程通信中的管道的作用。将父进程的输出系统传递给子进程。</p>
-
-<p>对于进程来说，可以分为前台进程和后台进程。很显然，当一个shell在运行前台进程时你是不可以输入的，而将进程放入后台去运行，你则可以在shell中继续干及自己的事情。前面说到了，一条ls命令什么的就是一个前台进程，而后台进程的实现可以在运行命令的末尾加上&amp;来实现，比如说</p>
-
-<pre><code>ls -n &amp;
-</code></pre>
-
-<p>这时，shell就会给你返回一条信息， [1] 620类似的，其中的框着的数字就代表是任务标志符，620代表进程标志符。</p>
-
-<p>这样就涉及到了另外一个问题，那就是前台进程和后台进程之间的切换，这里的切换操作之前可以列出当前的后台任务数，使用命令：</p>
-
-<pre><code>jobs
-</code></pre>
-
-<p>接着，可以使用两个简单的命令bg和fg,这两个命令的使用都是 cmd + 一个任务标志，如 </p>
-
-<pre><code>bg %1
-fg %2
-</code></pre>
-
-<p>等等。再者，如果你想等待后台的某个任务结束，可以使用wait命令，使用的格式同上，只是在wait过程中你是不能输入的。</p>
-
-<p>最后关于进程操作还有一个重要的命令就是ps命令了，ps命令可以显示出所有正在运行的进程，但是通常情况下，我们都是用grep命令结合管道过滤出我们想要的进程，通常ps的属性项为-aux,即</p>
-
-<pre><code>ps -aux
-//这里a代表终端中的所有进程 x非终端上的进程 u以用户为主的形式显示程序情况
-当然最后还有进程的杀死命令了，kill，用法很简单，参照bg命令。
-</code></pre>
       
     </div>
     <footer>
@@ -393,13 +283,50 @@ done</code></pre>
 <span class="title">sudo</span> npm install hexo -g //这一句有没有都没关系</code></pre>
 <p>现在再使用hexo命令就可以了。</p>
 <blockquote>
-<blockquote>
-<p>ps:不知道为什么我的虚拟机每次重启后都不能使用hexo命令,于是我在/etc/rc.local文件下加入了</p>
-</blockquote>
+<p>ps:不知道为什么我的虚拟机每次重启后都不能使用hexo命令,于是我在/etc/rc.local文件下加入了 </p>
 </blockquote>
 <pre><code><span class="title">nvm</span> use <span class="number">0</span>.<span class="number">8</span></code></pre>
 <p>这样，每次重启后后自动切换node.js的版本，从而就可以顺利使用hexo命令了。</p>
 <p>over!</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2013-11-26T08:28:22.000Z"><a href="/2013/11/26/预读书单/">11月 26 2013</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2013/11/26/预读书单/">预读书单</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>好长时间没有补血了，列出最近需要看的书的目录如下。</p>
+<p>数据结构及应用算法教程<br>TP311.12/3/-2    2511712     -    九龙湖校区    中文图书阅览室（4）    可借</p>
+<p>C和指针<br>TP312C/509/-2    2106402     -    九龙湖校区    中文图书阅览室（4）    可借</p>
+<p>鸟哥私房菜<br>TP316.89/240/-2    1997003     -    九龙湖校区    中文图书阅览室（4）    可借</p>
+<p>计算机网络自顶向下<br>图书馆暂时没有借阅</p>
+<p>先这么多吧。</p>
 
       
     </div>
@@ -474,10 +401,6 @@ done</code></pre>
       </li>
     
       <li>
-        <a href="/2013/12/17/shell编程基础练习.md/"></a>
-      </li>
-    
-      <li>
         <a href="/2013/12/11/远方/">远方</a>
       </li>
     
@@ -487,6 +410,10 @@ done</code></pre>
     
       <li>
         <a href="/2013/12/10/module-graceful-fs-for-npm/">module graceful-fs for npm</a>
+      </li>
+    
+      <li>
+        <a href="/2013/11/26/预读书单/">预读书单</a>
       </li>
     
   </ul>

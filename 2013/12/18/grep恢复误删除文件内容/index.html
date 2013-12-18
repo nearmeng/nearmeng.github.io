@@ -69,7 +69,7 @@
 $ cat vpsee.<span class="keyword">log</span> 
 important <span class="keyword">log</span> <span class="keyword">file</span> <span class="keyword">for</span> vpsee.com </code></pre>
 <p>$ rm vpsee.log如果能记住刚才删除文件中的某个关键字的话可以用 grep 搜索整个 /dev/sda1，-a 标志位的意思是把 /dev/sda1 这个分区看成是文本形式的（分区本身是二进制形式的），-B 10 -A 100 的意思是如果找到关键字就打印出其前10行和后100行的内容： </p>
-<pre><code><span class="comment">#</span> <span class="comment">grep</span> <span class="literal">-</span><span class="comment">a</span> <span class="literal">-</span><span class="comment">B</span> <span class="comment">10</span> <span class="literal">-</span><span class="comment">A</span> <span class="comment">100</span> <span class="comment">'vpsee</span>.<span class="comment">com'</span> <span class="comment">/dev/sda1</span> &gt; <span class="comment">tmp</span>.<span class="comment">txt</code></pre>
+<pre><code><span class="comment">grep</span> <span class="literal">-</span><span class="comment">a</span> <span class="literal">-</span><span class="comment">B</span> <span class="comment">10</span> <span class="literal">-</span><span class="comment">A</span> <span class="comment">100</span> <span class="comment">'vpsee</span>.<span class="comment">com'</span> <span class="comment">/dev/sda1</span> &gt; <span class="comment">tmp</span>.<span class="comment">txt</code></pre>
 <p>在一堆 @ 之间可以找到我们刚才删除的内容： </p>
 <pre><code><span class="variable">$ </span>vi tmp.txt </code></pre>
 <p>…<br>@$^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@Ç^@^@^@^A^@^@^@^@^@^@^@^@^@^@^@È^K^@^@^@<br>^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@^Q^@^@^@^C^@^@^@^@^@^@^@^@^@^@^@È^K^@^@×^@<br>^@^@important log file for vpsee.com<br>@<br>@<br>…</p>
@@ -182,10 +182,6 @@ important <span class="keyword">log</span> <span class="keyword">file</span> <sp
       </li>
     
       <li>
-        <a href="/2013/12/17/shell编程基础练习.md/"></a>
-      </li>
-    
-      <li>
         <a href="/2013/12/11/远方/">远方</a>
       </li>
     
@@ -195,6 +191,10 @@ important <span class="keyword">log</span> <span class="keyword">file</span> <sp
     
       <li>
         <a href="/2013/12/10/module-graceful-fs-for-npm/">module graceful-fs for npm</a>
+      </li>
+    
+      <li>
+        <a href="/2013/11/26/预读书单/">预读书单</a>
       </li>
     
   </ul>
