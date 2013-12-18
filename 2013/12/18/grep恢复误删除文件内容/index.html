@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   
-  <title>预读书单 | 浅水游鱼</title>
+  <title>grep恢复误删除文件内容(转) | 浅水游鱼</title>
   <meta name="author" content="NearMeng">
   
   <meta name="description" content="学习娱乐的栖息地">
@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="预读书单"/>
+  <meta property="og:title" content="grep恢复误删除文件内容(转)"/>
   <meta property="og:site_name" content="浅水游鱼"/>
 
   
@@ -51,22 +51,29 @@
     <header>
       
         <div class="icon"></div>
-        <time datetime="2013-11-26T08:28:22.000Z"><a href="/2013/11/26/预读书单/">11月 26 2013</a></time>
+        <time datetime="2013-12-18T06:39:23.000Z"><a href="/2013/12/18/grep恢复误删除文件内容/">12月 18 2013</a></time>
       
       
   
-    <h1 class="title">预读书单</h1>
+    <h1 class="title">grep恢复误删除文件内容(转)</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>好长时间没有补血了，列出最近需要看的书的目录如下。</p>
-<p>数据结构及应用算法教程<br>TP311.12/3/-2    2511712     -    九龙湖校区    中文图书阅览室（4）    可借</p>
-<p>C和指针<br>TP312C/509/-2    2106402     -    九龙湖校区    中文图书阅览室（4）    可借</p>
-<p>鸟哥私房菜<br>TP316.89/240/-2    1997003     -    九龙湖校区    中文图书阅览室（4）    可借</p>
-<p>计算机网络自顶向下<br>图书馆暂时没有借阅</p>
-<p>先这么多吧。</p>
+        <p>在 Linux 上如果事先没有用别名（alias）修改默认的 rm 功能，rm 后文件就会丢失，幸运的是，在一般的删除文件操作中，Linux 并不会立即清空存储该文件的 block 内容，而只会释放该文件所占用的 inode 和 data block，Linux 上 rm 的过程其实就是将 inode bitmap 和 data block bitmap 中的相应标识设为空闲状态的过程，并不涉及到真正的数据，这也是为什么在 Linux 下删除大文件这么快速的原因，因为大文件所占的磁盘根本就没有清空。所以，如果我们能找到文件对应的 inode，由此查到相应的 data block，就可能从磁盘上把已删除的文件恢复出来，很多文件/磁盘恢复工具都是这么做的。 </p>
+<p>一般来说二进制文件、库文件等删除后都可以从其他 Linux 拷贝恢复，不是很要紧，如果自己辛苦写的脚本或者配置文件误删了就杯具了。误删这种蠢事经常在 VPSee 身上发生，最近一次是在今年年初的时候，开了 screen 多次 ssh 到不同服务器上，在前后切换的过程中删除了一个很肯定的配置文件，后来发现删的文件是对的，可惜在一台错误的服务器上，本来应该在 A 服务器上删除 file.txt 结果在 B 服务器上删除了 file.txt，多个 screen 和 ssh 把自己搞晕了，而且主机名没有安排好，多台机器都是用的 localhost，不利于识别当时的环境。如果使用 Linux 的时候不幸误删了一个文本文件怎么办呢？ </p>
+<p>先临时建一个文本文件 vpsee.log 做测试，然后删除这个文件： </p>
+<pre><code>$ echo <span class="string">"important log file for vpsee.com"</span> &gt; vpsee.<span class="keyword">log</span> 
+
+$ cat vpsee.<span class="keyword">log</span> 
+important <span class="keyword">log</span> <span class="keyword">file</span> <span class="keyword">for</span> vpsee.com </code></pre>
+<p>$ rm vpsee.log如果能记住刚才删除文件中的某个关键字的话可以用 grep 搜索整个 /dev/sda1，-a 标志位的意思是把 /dev/sda1 这个分区看成是文本形式的（分区本身是二进制形式的），-B 10 -A 100 的意思是如果找到关键字就打印出其前10行和后100行的内容： </p>
+<pre><code><span class="comment">#</span> <span class="comment">grep</span> <span class="literal">-</span><span class="comment">a</span> <span class="literal">-</span><span class="comment">B</span> <span class="comment">10</span> <span class="literal">-</span><span class="comment">A</span> <span class="comment">100</span> <span class="comment">'vpsee</span>.<span class="comment">com'</span> <span class="comment">/dev/sda1</span> &gt; <span class="comment">tmp</span>.<span class="comment">txt</code></pre>
+<p>在一堆 @ 之间可以找到我们刚才删除的内容： </p>
+<pre><code><span class="variable">$ </span>vi tmp.txt </code></pre>
+<p>…<br>@$^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@Ç^@^@^@^A^@^@^@^@^@^@^@^@^@^@^@È^K^@^@^@<br>^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@^Q^@^@^@^C^@^@^@^@^@^@^@^@^@^@^@È^K^@^@×^@<br>^@^@important log file for vpsee.com<br>@<br>@<br>…</p>
+<p>当然，如果误删了二进制、doc、png/jpg/gif 之类的文件，可以用一些第三方 ext2/ext3 文件恢复工具帮助恢复文件，比如 TestDisk, PhotoRec 等。</p>
 
       
     </div>
@@ -75,13 +82,13 @@
         
   
   <div class="categories">
-    <a href="/categories/2013-11/">2013-11</a>
+    <a href="/categories/2013-12/">2013-12</a>
   </div>
 
         
   
   <div class="tags">
-    <a href="/tags/book/">book</a>
+    <a href="/tags/linux/">linux</a>, <a href="/tags/shell/">shell</a>
   </div>
 
 		<!-- Baidu Button BEGIN -->
