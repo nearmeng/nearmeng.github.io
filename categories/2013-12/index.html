@@ -174,80 +174,15 @@ chown:改变文件的属主 -R(递归改变该文件夹内多有文件的属主)
 <span class="comment">//这里给出用法 chown *user:group files*</span>
 chgrp:改变文件所属的组 同样可以使用上述的-R
 <span class="comment">//这里给出用户 chgrp *group files*</span></code></pre>
-<h3>输入输出和进程操作</h3>
-<p>输入输出是使用命令过程中放入和产生的数据，对文件的输出可以使用最简单的echo和printf来进行，但是这两个命令只能将文件输出到终端上，为了保留我们想要的数据，需要将数据存储进文件的时候，就需要用重定向命令了，重定向命令很简单，按照cmd &gt; files 即可，但是这会让每次重定向时将原来的数据冲掉，所以可以使用 cmd &gt;&gt; files命令在文件尾部进行追加。</p>
-<p>同时，对输入输出的描述还可以使用0,1,2进行简化描述，其中0代表标准输入STDIN，1表示标准输出STDOUT，2表示标准错误STDERR，因此在操作时可以利用0 1 2 进行简化表示。</p>
-<p>另外，还需要注意的是命令的输出可以作为另一个命令的输入，采用|管道命令实现。这是因为每个命令都是一个进程在运行，而使用管道后，其实后一个命令是前一个进程的子进程，这样管道实际上起着进程通信中的管道的作用。将父进程的输出系统传递给子进程。</p>
-<p>对于进程来说，可以分为前台进程和后台进程。很显然，当一个shell在运行前台进程时你是不可以输入的，而将进程放入后台去运行，你则可以在shell中继续干及自己的事情。前面说到了，一条ls命令什么的就是一个前台进程，而后台进程的实现可以在运行命令的末尾加上&amp;来实现，比如说</p>
-<pre><code><span class="title">ls</span> -n &amp;</code></pre>
-<p>这时，shell就会给你返回一条信息， [1] 620类似的，其中的框着的数字就代表是任务标志符，620代表进程标志符。</p>
-<p>这样就涉及到了另外一个问题，那就是前台进程和后台进程之间的切换，这里的切换操作之前可以列出当前的后台任务数，使用命令：</p>
-<pre><code><span class="attribute">jobs</code></pre>
-<p>接着，可以使用两个简单的命令bg和fg,这两个命令的使用都是 cmd + 一个任务标志，如 </p>
-<pre><code><span class="title">bg</span> %<span class="number">1</span>
-<span class="title">fg</span> %<span class="number">2</span></code></pre>
-<p>等等。再者，如果你想等待后台的某个任务结束，可以使用wait命令，使用的格式同上，只是在wait过程中你是不能输入的。</p>
-<p>最后关于进程操作还有一个重要的命令就是ps命令了，ps命令可以显示出所有正在运行的进程，但是通常情况下，我们都是用grep命令结合管道过滤出我们想要的进程，通常ps的属性项为-aux,即</p>
-<pre><code><span class="title">ps</span> -aux
-//这里a代表终端中的所有进程 x非终端上的进程 u以用户为主的形式显示程序情况
-当然最后还有进程的杀死命令了，kill，用法很简单，参照bg命令。</code></pre>
-<h3>流控制 循环和函数</h3>
-<p>shell中仍然存在高级语言中的选择和循环结构，下面主要介绍if和while语句。<br>if语句的主要格式为</p>
-<pre><code><span class="keyword">if</span> <span class="keyword">...</span>; then
-    do sth,
-<span class="keyword">else</span>
-    do sth,
-fi</code></pre>
-<p>case语句也比较常用，主要格式为:</p>
-<pre><code>case keyword <span class="keyword">in</span> 
-    pattern1)
-        sth.
-        <span class="comment">;;</span>
-    pattern2)
-        sth.
-        <span class="comment">;;</span>
-    patterN)
-        sth.
-        <span class="comment">;;</span>
-esac</code></pre>
-<p>while语句的主要格式为:</p>
-<pre><code><span class="keyword">while</span> cmd
-<span class="keyword">do</span> 
-    sth.
-<span class="keyword">done</span></code></pre>
-<p>for循环的主要格式为：</p>
-<pre><code><span class="keyword">for</span> name <span class="keyword">in</span> word1 word2 <span class="keyword">...</span> wordN
-do 
-    sth.
-done</code></pre>
-<p>具体的语句需要在实践中多多使用就可以啦，下面在来说一下函数的简单用法。使用函数之前需要先定义函数，函数的定义方法为：</p>
-<pre><code><span class="function"><span class="title">function</span> <span class="params">()</span>
-{
-    <span class="title">sth</span>, 
-}</code></pre>
-<p>这样，在之后的shell脚本中就可以使用函数了，使用函数的方法为函数名加变量，如function 10 20 30，这样在函数的定义中你就可以使用$1,$2,$3来使用上述的三个变量了。</p>
-<h3>文本过滤和处理</h3>
-<p>这才是这篇文章的重点呀，文本过滤和处理应该是shell中最常用到的功能了，下来主要说三个博大精深的命令:grep,sed,awk。</p>
-<p>grep命令常用于查找文件中的字符串，其常见的用法为：</p>
-<pre><code>grep <span class="property">word</span> <span class="type">file</span> 
-//从文件<span class="type">file</span>中查找出包含<span class="property">word</span>的行
-//grep的几个参数有
-//-v 后接需要忽略的<span class="property">word</span> 
-//-i 搜索时大小写无光
-//-I 仅仅列出<span class="type">file</span>中包含<span class="property">word</span>的文件名</code></pre>
-<p>sed命令后接正则表达式进行文件的过滤，常见的用法有：</p>
-<pre><code>sed <span class="string">'script'</span> files
-<span class="comment">//script可以用来进行打印，删除和替换等操作。</span>
-<span class="comment">//当使用打印命令时的格式为：'/正则/p'</span>
-<span class="comment">//当使用</span></code></pre>
-<h3>其他命令</h3>
-<p>列表如下吧～</p>
-<p>head<br>指的是取出文件头部的行 可以使用-number来进行具体指定<br>例子: head -5<br>tail<br>和head的用法类似，指的是取出文件尾部的行，同样使用-number具体指定<br>tr<br>对文件中的符号进行替换<br>sort<br>对文件内容进行排序，常见的用法有-n(按照数字进行排序) -r(按照逆序进行排列)<br>uniq<br>将文件中的重复行剔除掉，保证行的唯一性，常见的参数有-c(列出此行出现的次数)<br>find<br>用于查找文件和目录，产用的参数有-name -type(文件类型) -size(文件的大小)<br>xarg<br>由于将之前管道中的参数传递进下一条命令中，常用的参数有-I{}(指明参数的代表符) -n(每次传递的个数) -P (使用的进程数) -p(给出用户交互，在执行一条命令之后，等待用户输入)<br>sleep<br>系统延时命令，常见的有sleep 1s,sleep 1m,sleep 1h。<br>type:<br>bc &amp; expr<br>进行数学运算，二者的用法不一样，其中expr的用法为 <code>expr a + b</code>(需要注意的是expr后面的参数都需要加空格) bc的常见用法为 echo “a+b” | bc</p>
 
       
     </div>
     <footer>
       
+        
+          <div class="alignleft">
+            <a href="/2013/12/11/shell编程基础练习/#more" class="more-link">Read More</a>
+          </div>
         
         
       
