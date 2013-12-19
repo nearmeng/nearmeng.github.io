@@ -207,7 +207,7 @@ done</code></pre>
 <span class="comment">//当使用</span></code></pre>
 <h3>其他命令</h3>
 <p>列表如下吧～</p>
-<p>head:<br>tail:<br>tr:<br>sort:<br>uniq:<br>find:<br>xargs:<br>sleep:<br>type:<br>bc &amp; expr:</p>
+<p>head<br>指的是取出文件头部的行 可以使用-number来进行具体指定<br>例子: head -5<br>tail<br>和head的用法类似，指的是取出文件尾部的行，同样使用-number具体指定<br>tr<br>对文件中的符号进行替换<br>sort<br>对文件内容进行排序，常见的用法有-n(按照数字进行排序) -r(按照逆序进行排列)<br>uniq<br>将文件中的重复行剔除掉，保证行的唯一性，常见的参数有-c(列出此行出现的次数)<br>find<br>用于查找文件和目录，产用的参数有-name -type(文件类型) -size(文件的大小)<br>xarg<br>由于将之前管道中的参数传递进下一条命令中，常用的参数有-I{}(指明参数的代表符) -n(每次传递的个数) -P (使用的进程数) -p(给出用户交互，在执行一条命令之后，等待用户输入)<br>sleep<br>系统延时命令，常见的有sleep 1s,sleep 1m,sleep 1h。<br>type:<br>bc &amp; expr<br>进行数学运算，二者的用法不一样，其中expr的用法为 <code>expr a + b</code>(需要注意的是expr后面的参数都需要加空格) bc的常见用法为 echo “a+b” | bc</p>
 
       
     </div>
