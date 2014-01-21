@@ -88,7 +88,34 @@
 <pre><code>git remote add origin https://git.oschina.net/<span class="keyword">...</span>/...git
 git push -u origin master</code></pre>
 <p>此后，会让你填写你的git@osc的用户名和密码。</p>
-<h1>5、注意及其他</h1>
+<h1>5、版本恢复</h1>
+<p>使用git最重要的就是版本的恢复了。使用的命令主要有reset和revert。</p>
+<p>使用之前使用需要了解一下git内部的实现过程。git主要分为三个部分，工作区，缓存区和本地仓库，这使得git区别于一般的版本控制软件。<br>当前用户的更改处于工作区内，而当用户使用 git add 命令后则表示用户将当前工作区的更改提交给了缓存区，此时，更改的文件并不是最终的版本，缓存区中的文件依然可以进行操作和增减。而当用户使用 git commit命令时，才真正地将文件的更改提交了一个版本，进入了本地仓库。以后有空的话可以画个图说明。</p>
+<p>这就使得有三个空间可以让我们在文件出错的情况下，进行文件版本的恢复。</p>
+<h2>首先 本地仓库—&gt; 工作区和缓存区</h2>
+<p>这是比较常用到的一个功能，情况：对当前的文件进行了编辑和存入了缓存区，但是由于谁把你代码改了，或者不知道哪里出现了问题，编译不通过了，可以使用这种方法直接将代码的版本恢复到上一次，或者之前的提交的版本上，使用的命令是 git reset。命令运行的格式如下，其中主要参数有hard,soft,mix三种。下面分别分析。</p>
+<pre><code>git re<span class="operator"><span class="keyword">set</span> --参数 HEAD(<span class="keyword">or</span> 提交版本的hash值)</code></pre>
+<p>对于git reset —hard这个命令将会直接改变你的工作区和缓存区，将里面的文件内容变成和之前的版本一样的内容。正是所谓一删到底，彻底地把文件恢复了。</p>
+<p>对于git reset —soft这个命令将会将版本库中的内容退回到你想到的版本状态，将缓存区中从你想要的版本状态后的所有文件改动标记为<code>changes to be committed</code>，将工作区中比缓存区中多出的文件的改动变为<code>untracked files</code>;</p>
+<p>对于git reset —mix这个命令则是系统的默认参数，它的作用是将版本库中的内容退回到你想要的版本状态，将缓存区的内容也退回到你想要的版本状态，将工作区中的内容从你想要的版本后的所有的文件更改标记为<code>untracked files</code>;</p>
+<p>看着有混乱，但是总的来说，git reset使得版本库直接回到你想要的版本状态，但hard将使得工作区和缓存区也同样回去了，而soft使得缓存区没有直接回去，而是将之后的状态标记为未提交，并将工作区中未保存的状态表示为未存储，同理，<br>mix命令则将缓存区也清空到了原版本状态，而将之后的更改在工作区内表示为为存储状态。</p>
+<p>这里，还得说下上面提到的HEAD,HEAD指针始终指向版本库中的最新版本，所以HEAD则表示当前版本库的最新版，HEAD^表示上一版本，HEAD^^表示上上一版本。如果你想回到一个具体的版本，你可以使用</p>
+<pre><code><span class="title">git</span> reflog</code></pre>
+<p>命令，来查看HEAD之前的更新，进而确定要恢复到的版本。</p>
+<p>使用git revert就更有意思了，这个命令不是将原来的commit丢弃掉，而是接着你的commit继续往上加，如果你revert到一个版本，那么git将会从当前状态一直将你之前的更改反向地操作一遍，直到到你要回到的版本状态，并提交产生一个新的版本，该版本在形式上是和原来的版本是一样的，但是其实际上经过反向操作而形成的版本。</p>
+<p>所以有人很奇怪，为什么有了reset还需要revert呢，这是因为使用的场合不同，reset只是将本地的版本进行更改,如果版本没有上传到远端，可以随意修改，但是revert则是继续增加新的版本，这样就算是文件上传到了远端，revert后进行push也还是没有问题的。</p>
+<h2>其次 缓存区—&gt; 工作区</h2>
+<p>这里的意思是，文件修改后，add到缓存区了，还没有提交，现在对于缓存区的文件不想要了，或者当前文件改变后不正常，想从缓存区中搞点文件下来，这里需要进行一些操作。</p>
+<p>对缓存区的文件的操作有一些命令，删除：</p>
+<pre><code><span class="comment">git</span> <span class="comment">rm</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">cached</span> <span class="comment">files</code></pre>
+<p>同时，如果想把文件从缓存区内拿出来，则可以使用命令：</p>
+<pre><code><span class="title">git</span> checkout files</code></pre>
+<h2>最后 工作区清空</h2>
+<p>做了半天，发现没必要，同时git也没有存入缓存区，于是，使用一个命令解决掉你痛苦的一天吧：</p>
+<pre><code><span class="title">git</span> clear -df</code></pre>
+<p>一切恢复平静。</p>
+<p>另外，还需要注意的git建立分支，使用ssh的操作等以后更新吧。</p>
+<h1>6、注意及其他</h1>
 <h2>5.1 需要更改你的分支名</h2>
 <p>一般你的文件夹下你的分支名是master，而如果你要更改分支名的话。使用以下命令。</p>
 <pre><code>git branch <span class="comment">/* 查看当前的分支 */</span>
@@ -235,7 +262,7 @@ git checkout hello <span class="comment">/* 将当前的分支改为hello分支 
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-  &copy; 2013 NearMeng
+  &copy; 2014 NearMeng
   
 </div>
 <div class="clearfix"></div></footer>
