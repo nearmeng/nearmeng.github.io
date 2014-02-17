@@ -76,7 +76,7 @@
 <pre><code>mysqladmin <span class="keyword">shutdown</span>
 /ect/init.d/mysql <span class="keyword">shutdown</span> (前面为mysql的安装路径)</code></pre>
 <p>4.连接本机上的mysql：<br>进入目录mysql\bin，再键入命令mysql -uroot -p， 回车后提示输入密码。<br>退出mysql命令：exit（回车）</p>
-<p>5.修改mysql密码：<br>mysqladmin -u用户名 -p旧密码 password 新密码<br>或进入mysql命令行SET PASSWORD FOR root=PASSWORD(“root”);</p>
+<p>5.修改mysql密码：<br>mysqladmin -u用户名 -p旧密码 password 新密码<br>或进入mysql命令行SET PASSWORD FOR root=PASSWORD(“root”);<br><a id="more"></a></p>
 <p>6.增加新用户。（注意：mysql环境中的命令后面都带一个分号作为命令结束符）<br>grant select on 数据库.* to 用户名@登录主机 identified by “密码”<br>如增加一个用户test密码为123，让他可以在任何主机上登录， 并对所有数据库有查询、插入、修改、删除的权限。首先用以root用户连入mysql，然后键入以下命令：</p>
 <pre><code><span class="operator"><span class="keyword">grant</span> <span class="keyword">select</span>,<span class="keyword">insert</span>,<span class="keyword">update</span>,<span class="keyword">delete</span> <span class="keyword">on</span> *.* <span class="keyword">to</span> <span class="string">" Identified by "</span><span class="number">123</span><span class="string">";</code></pre>
 <p>7、显示数据库列表。</p>

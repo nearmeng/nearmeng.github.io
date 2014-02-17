@@ -70,7 +70,7 @@
 <p>接下来，说一说，在什么情况下，会使用上述的两种定义，首先，数组指针的使用。数组指针中可以存放n个指针，因为在定义后，可以将若干个地址放入数组中，然后将数组可以作为参数传递等。</p>
 <p>而对于指向数组的指针，则是一种比较典型的数据类型，比如，<code>a[m][n]</code>是一个2维数组，那么<code>a</code>的数据类型就是<code>(*a)[n]</code>，而<code>a[0]</code>的数据类型则是一个指针<code>*a</code>，这样在二维或者是多维数组作为实参向函数中进行传递时，则可以定义函数的参数类型为<code>(*a)[n]</code>，实参为数组名a。</p>
 <h1>如何将代码暂时存储到远端</h1>
-<p>本地使用git push到远端，从远端下载后，再将远端的代码使用git删除。<br>删除使用的方法：   </p>
+<p>本地使用git push到远端，从远端下载后，再将远端的代码使用git删除。<br><a id="more"></a><br>删除使用的方法：   </p>
 <pre><code><span class="comment">git</span> <span class="comment">rm</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">cached</span> <span class="literal">-</span><span class="comment">rf</span> <span class="string">.</span>
 <span class="comment">git</span> <span class="comment">commit</span> <span class="literal">-</span><span class="comment">m</span> <span class="comment">"delete</span> <span class="comment">all"</span>
 <span class="comment">git</span> <span class="comment">push</span> <span class="literal">-</span><span class="comment">u</span> <span class="comment">origin</span> <span class="comment">master</code></pre>
