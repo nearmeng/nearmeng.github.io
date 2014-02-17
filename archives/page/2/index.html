@@ -56,6 +56,162 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2013-12-11T06:29:09.000Z"><a href="/2013/12/11/shell编程基础练习/">12月 11 2013</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2013/12/11/shell编程基础练习/">shell编程基础练习</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>shell作为一个人机交互的接口,在Linux中发挥着很大的作用，而shell编程则是减轻系统工程师工作的利器，这里总结一下shell编程的主要内容（趁着程序运行的空档）.</p>
+<p>本文的基本结构是shell编程的基本命令和常用的实例。</p>
+<h2>命令篇</h2>
+<h3>环境变量</h3>
+<p>环境变量指的是当shell运行后，系统默认给shell传递的变量。   </p>
+<pre><code><span class="variable">$pwd</span>:显示当前路径    
+<span class="variable">$HOME</span>:当前用户的主目录
+<span class="variable">$#</span>:shell中参数的个数
+<span class="variable">$0</span>:shell文件名
+<span class="variable">$1</span>-<span class="variable">$n</span>:参数值
+具体还有部分预设参数列表，见(此链接)[http:<span class="comment">//www.cnblogs.com/fhefh/archive/2011/04/15/2017613.html]。</span></code></pre>
+<h3>文件和目录操作</h3>
+<p>文件操作的主要命令有：    </p>
+<pre><code>cd:切换目录
+<span class="keyword">ls</span>:列出目录下文件 通常含有 -a(隐藏文件) -l(文件权限)
+mkdir,rmdir:创建，删除目录
+cp,mv,rm:拷贝，移动，删除文件或者目录(rm在删除目录时需要加-rf)
+ln:建立硬链接(ln -s可以建立符号链接)
+chmod:改变文件权限
+<span class="comment">//chmod 对文件权限的改变方式有两种：符号方法和八进制方法</span>
+<span class="comment">//所谓符号方法就是采用(who)(action)(permissions)来描述对对权限的操作</span>
+<span class="comment">//这里who的选择有:u g o a,分别表示属主，组，其他和所有用户</span>
+<span class="comment">//这里action的选择有：+ - =，分别表示增加，减少和设定文件权限。</span>
+<span class="comment">//这里permision的选择有:r w x t s,分别表示读，写，执行，粘滞位和SGID位</span>
+<span class="comment">//所以给个例子 chmod a+x hello.c 意思就是对hello文件的所有人增加执行权限</span>
+<span class="comment">//而所谓八进制的方法则是对每种权限用一个数字进行表示，读4写2执行1,对所有用户生效。</span>
+<span class="comment">//同样举个例子 chmod 777 hello.c 意思是任何人可以进行任何操作</span>
+chown:改变文件的属主 -R(递归改变该文件夹内多有文件的属主)
+<span class="comment">//这里给出用法 chown *user:group files*</span>
+chgrp:改变文件所属的组 同样可以使用上述的-R
+<span class="comment">//这里给出用户 chgrp *group files*</span></code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+          <div class="alignleft">
+            <a href="/2013/12/11/shell编程基础练习/#more" class="more-link">Read More</a>
+          </div>
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2013-12-10T08:34:37.000Z"><a href="/2013/12/10/module-graceful-fs-for-npm/">12月 10 2013</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2013/12/10/module-graceful-fs-for-npm/">module graceful-fs for npm</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h1>问题：</h1>
+<p>今天使用hexo时发现错误，hexo:command not found.于是重新安装hexo.但是在安装好npm后，却发现运行</p>
+<pre><code><span class="attribute">npm</code></pre>
+<p>出现错误，没有找到模块graceful-fs,在纠结了半天之后，发现这是node的版本问题，导致了npm不能正确安装express.</p>
+<h1>解决方案：</h1>
+<p>于是，在node的包管理器中重新安装node至高版本，再去运行npm安装hexo，就可以解决问题了。命令：</p>
+<pre><code><span class="title">nvm</span> install v0<span class="number">.8</span>
+<span class="title">nvm</span> use <span class="number">0.8</span>
+<span class="title">sudo</span> npm install hexo -g //这一句有没有都没关系</code></pre>
+<p>现在再使用hexo命令就可以了。</p>
+<blockquote>
+<p>ps:不知道为什么我的虚拟机每次重启后都不能使用hexo命令,于是我在/etc/rc.local文件下加入了 </p>
+</blockquote>
+<pre><code><span class="title">nvm</span> use <span class="number">0</span>.<span class="number">8</span></code></pre>
+<p>这样，每次重启后后自动切换node.js的版本，从而就可以顺利使用hexo命令了。</p>
+<p>over!</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2013-11-26T08:28:22.000Z"><a href="/2013/11/26/预读书单/">11月 26 2013</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2013/11/26/预读书单/">预读书单</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>好长时间没有补血了，列出最近需要看的书的目录如下。</p>
+<p>数据结构及应用算法教程<br>TP311.12/3/-2    2511712     -    九龙湖校区    中文图书阅览室（4）    可借</p>
+<p>C和指针<br>TP312C/509/-2    2106402     -    九龙湖校区    中文图书阅览室（4）    可借</p>
+<p>鸟哥私房菜<br>TP316.89/240/-2    1997003     -    九龙湖校区    中文图书阅览室（4）    可借</p>
+<p>计算机网络自顶向下<br>图书馆暂时没有借阅</p>
+<p>先这么多吧。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2013-11-26T03:22:15.000Z"><a href="/2013/11/26/git使用简介/">11月 26 2013</a></time>
       
       
@@ -148,83 +304,13 @@
 
 
   
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-11-26T02:51:20.000Z"><a href="/2013/11/26/测试文章/">11月 26 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/11/26/测试文章/">测试文章</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>这是一片测试文档，看看效果。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-11-25T13:46:15.000Z"><a href="/2013/11/25/hello-world/">11月 25 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/11/25/hello-world/">hexo+github创建新博客</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>Hexo页面介绍地址: <a href="http://zespia.tw/hexo" target="_blank">Hexo</a>! </p>
-<p>The doc of hexo is <a href="http://zespia.tw/hexo/docs" target="_blank">here</a>.</p>
-<p>And now I can edit the blog through vim and some simple command. Happy to see this!</p>
-<p>可以参考的博客地址:</p>
-<p>[]:<a href="http://howiefh.github.io/" target="_blank">http://howiefh.github.io/</a><br>[]:<a href="http://zipperary.com/2013/05/30/hexo-guide-4/" target="_blank">http://zipperary.com/2013/05/30/hexo-guide-4/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
 
   <nav id="pagination">
   
     <a href="/archives/" class="alignleft prev">上一页</a>
   
+  
+    <a href="/archives/page/3/" class="alignright next">下一页</a>
   
   <div class="clearfix"></div>
 </nav>
@@ -244,17 +330,23 @@
   <h3 class="title">标签</h3>
   <ul class="entry">
   
+    <li><a href="/tags/C/">C</a><small>1</small></li>
+  
     <li><a href="/tags/book/">book</a><small>1</small></li>
   
     <li><a href="/tags/git/">git</a><small>1</small></li>
   
     <li><a href="/tags/hexo/">hexo</a><small>2</small></li>
   
+    <li><a href="/tags/libevent/">libevent</a><small>1</small></li>
+  
     <li><a href="/tags/life/">life</a><small>1</small></li>
   
-    <li><a href="/tags/linux/">linux</a><small>2</small></li>
+    <li><a href="/tags/linux/">linux</a><small>5</small></li>
   
     <li><a href="/tags/markdown/">markdown</a><small>1</small></li>
+  
+    <li><a href="/tags/mysql/">mysql</a><small>1</small></li>
   
     <li><a href="/tags/npm/">npm</a><small>1</small></li>
   
@@ -263,6 +355,8 @@
     <li><a href="/tags/shell/">shell</a><small>2</small></li>
   
     <li><a href="/tags/test/">test</a><small>1</small></li>
+  
+    <li><a href="/tags/网络编程/">网络编程</a><small>1</small></li>
   
   </ul>
 </div>
@@ -274,23 +368,23 @@
   <ul class="entry">
     
       <li>
+        <a href="/2014/02/17/libevent介绍和实例/">libevent和基于libevent的网络编程</a>
+      </li>
+    
+      <li>
+        <a href="/2014/02/17/mysql的c语言操作/">Linux下mysql的安装和使用(C语言)</a>
+      </li>
+    
+      <li>
+        <a href="/2014/02/17/数组和指针问题/">数组和指针问题</a>
+      </li>
+    
+      <li>
         <a href="/2013/12/18/grep恢复误删除文件内容/">grep恢复误删除文件内容(转)</a>
       </li>
     
       <li>
         <a href="/2013/12/11/远方/">远方</a>
-      </li>
-    
-      <li>
-        <a href="/2013/12/11/shell编程基础练习/">shell编程基础练习</a>
-      </li>
-    
-      <li>
-        <a href="/2013/12/10/module-graceful-fs-for-npm/">module graceful-fs for npm</a>
-      </li>
-    
-      <li>
-        <a href="/2013/11/26/预读书单/">预读书单</a>
       </li>
     
   </ul>

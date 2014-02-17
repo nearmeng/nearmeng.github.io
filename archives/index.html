@@ -56,6 +56,734 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2014-02-17T01:54:25.000Z"><a href="/2014/02/17/libevent介绍和实例/">2月 17 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/02/17/libevent介绍和实例/">libevent和基于libevent的网络编程</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>1 libevent介绍和安装</h2>
+<h3>介绍</h3>
+<p>libevent是一个轻量级的基于事件驱动的高性能的开源网络库，并且支持多个平台，对多个平台的I/O复用技术进行了封装，当我们编译库的代码时，编译的脚本将会根据OS支持的处理事件机制，来编译相应的代码，从而在libevent接口上保持一致。</p>
+<p>在当前的服务器上，面对的主要问题就是要能处理大量的连接。而通过libevent这个网络库，我们就可以调用它的API来很好的解决上面的问题。首先，可以来回顾一下，对这个问题的传统解决方法。</p>
+<p><em>问题：</em> 如何处理多个客户端连接</p>
+<p><em>解决方案1：</em>I/O复用技术 </p>
+<p>这几种方式都是同步I/O，即当读写事件就绪，他们自己需要负责进行读写，这个读写过程是阻塞的，而异步I/O则不需要自己负责读写，只需要通知负责读写的程序就可以了。</p>
+<ul>
+<li><p>循环<br>假设当前我服务器有多个网络连接需要看管，那么我就循环遍历打开的网络连接的列表，来判断是否有要读取的数据。这种方法的缺点很明显，那就是 1.速度缓慢（必须遍历所有的网络连接） 2.效率低 （处理一个连接时可能发生阻塞，妨碍其他网络连接的检查和处理）</p>
+</li>
+<li><p>select方式<br>select对应于内核中的sys_select调用，sys_select首先将第二三四个参数指向的fd_set拷贝到内核，然后对每个被SET的描述符调用进行poll，并记录在临时结果中（fdset），如果有事件发生，select会将临时结果写到用户空间并返回；当轮询一遍后没有任何事件发生时，如果指定了超时时间，则select会睡眠到超时，睡眠结束后再进行一次轮询，并将临时结果写到用户空间，然后返回。<br>select返回后，需要逐一检查关注的描述符是否被SET（事件是否发生）。（select支持的文件描述符数量太小了，默认是1024）。</p>
+</li>
+<li><p>poll方式<br>poll与select不同，通过一个pollfd数组向内核传递需要关注的事件，故没有描述符个数的限制，pollfd中的events字段和revents分别用于标示关注的事件和发生的事件，故pollfd数组只需要被初始化一次。<br>poll的实现机制与select类似，其对应内核中的sys_poll，只不过poll向内核传递pollfd数组，然后对pollfd中的每个描述符进行poll，相比处理fdset来说，poll效率更高。<br>poll返回后，需要对pollfd中的每个元素检查其revents值，来得指事件是否发生。</p>
+</li>
+<li><p>epoll方式<br>epoll通过epoll_create创建一个用于epoll轮询的描述符，通过epoll_ctl添加/修改/删除事件，通过epoll_wait检查事件，epoll_wait的第二个参数用于存放结果。<br>epoll与select、poll不同，首先，其不用每次调用都向内核拷贝事件描述信息，在第一次调用后，事件信息就会与对应的epoll描述符关联起来。其次，epoll不是通过轮询，而是通过在等待的描述符上注册回调函数，当事件发生时，回调函数负责把发生的事件存储在就绪事件链表中，最后写到用户空间。<br>epoll返回后，该参数指向的缓冲区中即为发生的事件，对缓冲区中每个元素进行处理即可，而不需要像poll、select那样进行轮询检查。</p>
+</li>
+</ul>
+<p><em>解决方案2：</em>多线程技术或多进程技术</p>
+<p>多线程技术和多进程技术也可以处理高并发的数据连接，因为在服务器中可以产生大量的进程和线程和处理我们需要监视的连接。但是，这两种方式也是有很大的局限性的，比如多进程模型就不适合大量的短连接，因为进程的产生和关闭需要消耗较大的系统性能，同样，还要进程进程间的通信，在CPU性能不足的情况下不太适合。而多线程技术则不太适合处理长连接，因为当我们建立一个进程时，linux中会消耗8G的栈空间，如果我们的每个连接都杵着不断开，那么大量连接长连接后，导致的结果就是内存的大量消耗。</p>
+<p><em>解决方案3：</em>常用的上述二者复合使用<br>上述的两种方法各具有优缺点，因此，我们可以将上述的方法结合起来，这也是目前使用较多的处理高并发的方法。多进程+I/O复用或者多线程+I/O复用。而在具体的实现上，又可以分为很多的方式。比如多线程+I/O复用技术，我们使用使用一个主线程负责监听一个端口和接受的描述符是否有读写事件产生，如果有，则将事件分发给其他的工作进程去完成，这也是进程池的理念。</p>
+<p>在说完上述的高并发的处理方法之后，我们可以来介绍一个libevent的主要特色了。</p>
+<p>同样，lievent也是采用的上述系统提供的select，poll和epoll方法来进行I/O复用，但是针对于多个系统平台上的不同的I/O复用实现方式，libevent进行了重新的封装，并提供了统一的API接口。libevent在实现上使用了事件驱动这种机制，其本质上是一种Reactor模式。</p>
+<blockquote>
+<p>Reactor模式，是一种事件驱动机制。应用程序需要提供相应的接口并注册到Reactor上，如果相应的事件发生，Reactor将主动调用应用程序注册的接口，这些接口又称为“回调函数”。  </p>
+</blockquote>
+<p>在Libevent中也是一样，向Libevent框架注册相应的事件和回调函数；当这些事件发生时，Libevent会调用这些回调函数处理相应的事件。</p>
+<p>lbevent的事件支持三种，分别是网络IO、定时器和信号。定时器的数据结构使用最小堆（Min Heap），以提高效率。网络IO和信号的数据结构采用了双向链表(TAILQ)。</p>
+<h3>安装</h3>
+<p>libevent的安装很简单，我是直接从github上clone下<a href="https://github.com/nmathewson/Libevent" target="_blank">一个源码</a>，然后进行编译安装的。   </p>
+<p>具体的命令是（假设你已经安装了git）：</p>
+<pre><code><span class="preprocessor"># git clone https://github.com/nmathewson/Libevent.git</span>
+<span class="preprocessor"># cd Libevent</span>
+<span class="preprocessor"># sh autogen.sh</span>
+<span class="preprocessor"># ./configure &amp;&amp; make</span>
+<span class="preprocessor"># make install</span>
+<span class="preprocessor"># make verify  //验证安装</span></code></pre>
+<h2>2 Linux下libevent主要API介绍</h2>
+<p>现在的libevent版本已经到达libevent2了，其增加了多线程的支持，API函数也发生了一些微小的变化。</p>
+<ul>
+<li><p>创建事件集   </p>
+<p>  struct event_base *event_base_new(void)</p>
+</li>
+<li><p>创建事件</p>
+<p>  struct event <em>event_new(struct event_base </em> ,evutil_socket_t ,short ,event_callback_fn,void*)</p>
+<p>  参数一：事件所在的事件集。<br>  参数二：socket的描述符。<br>  参数三：事件类型，其中EV_READ表示等待读事件发生，EV_WRITE表示写事件发生，或者它俩的组合，EV_SIGNAL表示需要等待事件的号码，如  果不包含上述的标志，就是超时事件或者手动激活的事件。<br>  参数四：事件发生时需要调用的回调函数。<br>  参数五：回调函数的参数值。</p>
+</li>
+<li><p>添加事件和删除事件</p>
+<p>  int event_add(struct event <em> ev,const struct timeval</em> timeout)</p>
+<p>  参数一：需要添加的事件<br>  参数二：事件的最大等待事件，如果是NULL的话，就是永久等待</p>
+<p>  int event_del(struct event *)<br>  参数一：需要删除的事件</p>
+</li>
+<li><p>分配监听事件</p>
+<p>  int event_base_dispatch(struct event_base * ) </p>
+<p>  参数一：需要监视的事件集</p>
+</li>
+<li><p>I/O buffer事件</p>
+<p>  struct bufferevent<em> bufferevent_socket_new<br>  (struct event_base </em> base,evutil_socket_t fd,int options)</p>
+<p>  参数一：需要添加到的时间集<br>  参数二：相关的文件描述符<br>  参数三：0或者是相应的BEV_OPT_*可选标志</p>
+<p>  int bufferevent_enable(struct bufferevent * bev,short event)</p>
+<p>  参数一：需要启用的bufferevent<br>  参数二：any combination of EV|READ | EV_WRITE</p>
+<p>  int bufferevent_disable(struct bufferevent * bev,short event)</p>
+<p>  参数说明：同上</p>
+<p>  size_t bufferevent_read(struct bufferevent <em>bev,void </em> data,size_t size)</p>
+<p>  参数一：读取的buffer_event事件<br>  参数二：存储数据的指针<br>  参数三：数据buffer的大小</p>
+<p>  返回值：读取数据的字节数</p>
+<p>  int bufferevent_write(struct bufferevent <em>bev,const void </em> data,size_t size)</p>
+<p>  参数一：读取的buffer_event事件<br>  参数二：存储数据的指针<br>  参数三：要写入的数据的大小，字节数</p>
+</li>
+</ul>
+<p>如果你想知道更多的API使用情况，请<a href="http://www.wangafu.net/~nickm/libevent-2.0/doxygen/html/" target="_blank">点击这里</a>。</p>
+<h2>3.1 编程实例之聊天室服务器</h2>
+<p>下面，就基于libevent2编写一个聊天室服务器。</p>
+<p><em>设计思想：</em>首先创建一个套接字，进而创建一个事件对此端口进行监听，将所请求的用户组成一个队列，并监听所有的用户事件，当某个用户说话了，产生了读事件，就将该用户的发言发送给队列中的其他用户。</p>
+<p><em>程序分析</em></p>
+<p>需要包含的libevent函数头：</p>
+<pre><code>#include <span class="tag">&lt;<span class="title">event2</span>/<span class="attribute">event.h</span>&gt;</span>
+#include <span class="tag">&lt;<span class="title">event2</span>/<span class="attribute">event_struct.h</span>&gt;</span>
+#include <span class="tag">&lt;<span class="title">event2</span>/<span class="attribute">bufferevent.h</span>&gt;</span>
+#include <span class="tag">&lt;<span class="title">event2</span>/<span class="attribute">buffer.h</span>&gt;</span></code></pre>
+<p>创建一个client结构体，接受连接后存放数据：</p>
+<pre><code>struct client {
+<span class="comment">/* The clients socket. */</span>
+    int fd<span class="comment">;</span>
+
+<span class="comment">/* The bufferedevent for this client. */</span>
+struct bufferevent *buf_ev<span class="comment">;</span>
+    struct bufferevent *buf_ev<span class="comment">;</span>
+<span class="comment">/*
+ * This holds the pointers to the next and previous entries in
+ * the tail queue.
+ */</span>
+    TAILQ_ENTRY(client) entries<span class="comment">;</span>
+}<span class="comment">;</span></code></pre>
+<p>先来看下mian函数的处理：</p>
+<pre><code>int
+main(int argc, char **argv)
+{
+    int listen_fd<span class="comment">;</span>
+    struct sockaddr_in listen_addr<span class="comment">;</span>
+    struct event ev_accept<span class="comment">;</span>
+    int reuseaddr_on<span class="comment">;</span>
+
+    <span class="comment">/* Initialize libevent. */</span>
+    evbase = event_base_new()<span class="comment">;</span>
+
+    <span class="comment">/* Initialize the tailq. */</span>
+    TAILQ_INIT(&amp;client_tailq_head)<span class="comment">;</span>
+
+    <span class="comment">/* Create our listening socket. */</span>
+    listen_fd = socket(AF_INET, SOCK_STREAM, <span class="number">0</span>)<span class="comment">;</span>
+    if (listen_fd &lt; <span class="number">0</span>)
+        err(<span class="number">1</span>, <span class="string">"listen failed"</span>)<span class="comment">;</span>
+    memset(&amp;listen_addr, <span class="number">0</span>, sizeof(listen_addr))<span class="comment">;</span>
+    listen_addr<span class="preprocessor">.sin</span>_family = AF_INET<span class="comment">;</span>
+    listen_addr<span class="preprocessor">.sin</span>_addr<span class="preprocessor">.s</span>_addr = INADDR_ANY<span class="comment">;</span>
+    listen_addr<span class="preprocessor">.sin</span>_port = htons(SERVER_PORT)<span class="comment">;</span>
+
+    if (bind(listen_fd, (struct sockaddr *)&amp;listen_addr,
+    sizeof(listen_addr)) &lt; <span class="number">0</span>)
+    err(<span class="number">1</span>, <span class="string">"bind failed"</span>)<span class="comment">;</span>
+    if (listen(listen_fd, <span class="number">5</span>) &lt; <span class="number">0</span>)
+    err(<span class="number">1</span>, <span class="string">"listen failed"</span>)<span class="comment">;</span>
+    reuseaddr_on = <span class="number">1</span><span class="comment">;</span>
+    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &amp;reuseaddr_on, 
+    sizeof(reuseaddr_on))<span class="comment">;</span>
+
+    <span class="comment">/* Set the socket to non-blocking, this is essential in event
+     * based programming with libevent. */</span>
+    if (setnonblock(listen_fd) &lt; <span class="number">0</span>)
+    err(<span class="number">1</span>, <span class="string">"failed to set server socket to non-blocking"</span>)<span class="comment">;</span>
+
+    <span class="comment">/* We now have a listening socket, we create a read event to
+    * be notified when a client connects. */</span>
+       event_assign(&amp;ev_accept, evbase, listen_fd, EV_READ|EV_PERSIST, 
+    on_accept, NULL)<span class="comment">;</span>
+    event_add(&amp;ev_accept, NULL)<span class="comment">;</span>
+
+    <span class="comment">/* Start the event loop. */</span>
+    event_base_dispatch(evbase)<span class="comment">;</span>
+
+    return <span class="number">0</span><span class="comment">;</span>
+}</code></pre>
+<p>首先，函数初始化了一个用户队列tailq，接着创建了一个socket套接字，并将套接字设定为非阻塞模式，接着对一个全局的evbase事件集合，注册了事件，事件源是listen_fd，回调函数是on_accept，事件发生的情况是EV_READ,而且标志EV_PESIST表明该事件一直存在，而后开启事件扫描循环<code>event_base_dispatch(evbase)</code>。</p>
+<p>再看一下回调函数on_accpet实现：</p>
+<pre><code>void
+on_accept(<span class="keyword">int</span> fd, short ev, void <span class="variable">*arg</span>)
+{
+    <span class="keyword">int</span> client_fd;
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    struct client <span class="variable">*client</span>;
+
+    client_fd = <span class="keyword">accept</span>(fd, (struct sockaddr <span class="variable">*)</span>&amp;client_addr, &amp;client_len);
+    <span class="keyword">if</span> (client_fd &lt; <span class="number">0</span>) {
+        <span class="keyword">warn</span>(<span class="string">"accept failed"</span>);
+        <span class="keyword">return</span>;
+    }
+
+    /* Set the client <span class="keyword">socket</span> to non-blocking mode. <span class="variable">*/</span>
+    <span class="keyword">if</span> (setnonblock(client_fd) &lt; <span class="number">0</span>)
+        <span class="keyword">warn</span>(<span class="string">"failed to set client socket non-blocking"</span>);
+
+    <span class="regexp">/* We've accepted a new client, create a client object. */</span>
+    client = calloc(<span class="number">1</span>, sizeof(<span class="variable">*client</span>));
+    <span class="keyword">if</span> (client == NULL)
+        err(<span class="number">1</span>, <span class="string">"malloc failed"</span>);
+    client-&gt;fd = client_fd;
+
+    client-&gt;buf_ev = bufferevent_socket_new(evbase, client_fd, <span class="number">0</span>);
+    bufferevent_setcb(client-&gt;buf_ev, buffered_on_read, NULL,
+        buffered_on_error, client);
+
+    <span class="regexp">/* We have to enable it before our callbacks will be
+     * called. */</span>
+    bufferevent_enable(client-&gt;buf_ev, EV_READ);
+
+    <span class="regexp">/* Add the new client to the tailq. */</span>
+    TAILQ_INSERT_TAIL(&amp;client_tailq_head, client, entries);
+
+    <span class="keyword">printf</span>(<span class="string">"Accepted connection from <span class="variable">%s</span>\n"</span>, 
+        inet_ntoa(client_addr.sin_addr));
+}</code></pre>
+<p>这个回调函数的作用很显然，就是接受了一个客户端的请求，并申请好了一个<code>client</code>信息，将需要的内容填写好，在填写中需要注意的是，又向上述的事件集<code>evbase</code>中注册了<code>一个bufferevent</code>事件<code>client-&gt;buf_ev</code>,并注册了回调函数<code>buffered_on_read</code>,<code>buffered_on_error</code>，这三个函数分别是当接受后的连接发生了读或者错误事件后的执行函数。接着，将用户的<code>client</code>结构放入了用户的队列<code>tailq</code>中去。</p>
+<p>用户的buffer可读后的执行函数：</p>
+<pre><code><span class="title">void</span>
+<span class="title">buffered_on_read</span>(struct bufferevent *bev, void *arg)
+{
+    struct client *this_client = arg;
+    struct client *client;
+    uint8_t <span class="typedef"><span class="keyword">data</span>[8192];</span>
+    size_t n;
+
+    /* <span class="type">Read</span> <span class="number">8</span>k at a time and send it to all connected clients. */
+    for (;;) {
+        n = bufferevent_read(bev, <span class="typedef"><span class="keyword">data</span>, sizeof<span class="container">(<span class="title">data</span>)</span>);</span>
+        <span class="keyword">if</span> (n &lt;= <span class="number">0</span>) {
+            /* <span class="type">Done</span>. */
+            break;
+        }
+
+        /* <span class="type">Send</span> <span class="typedef"><span class="keyword">data</span> to all connected clients except for the</span>
+         * client that sent the <span class="typedef"><span class="keyword">data</span>. */</span>
+
+        <span class="type">TAILQ_FOREACH</span>(client, &amp;client_tailq_head, entries) {
+            <span class="keyword">if</span> (client != this_client) {
+                bufferevent_write(client-&gt;buf_ev, <span class="typedef"><span class="keyword">data</span>,  n);</span>
+            }
+        }
+
+    }
+
+}</code></pre>
+<p>执行函数的作用很明显，将libevent管理中的<code>buffer</code>数据读取出，存入本地的<code>data</code>数组内，然后对队列中的<code>client</code>进行检索，如果不是发数据的<code>client</code>,则将数据写入该<code>client</code>的buffer中，发送给该用户。这里注意的是需要反复读取<code>buffer</code>中的数据，防止一个读取并没有读取干净，直到读取不到数据为止。</p>
+<p>buffer出错处理函数和上述函数差不多，功能就是出错后，结束掉保存的client结构，详细就不说了。</p>
+<p><em>程序源码：</em> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/chat-server.c" target="_blank">chat-server.c</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/Makefile" target="_blank">Makefile</a></p>
+<p>编译的时候记得修改Makefile中Libevent文件夹的位置</p>
+<h2>3.2 编程实例之回显服务器（纯异步IO）</h2>
+<p><em>设计思想：</em>所谓回显服务器就是将客户端发过来的数据再发回去，这里主要也就是说明libevent的纯IO复用实现。实现方法和上面的差不多，甚至可以说更加简单。</p>
+<p>程序和上面的聊天服务器差不多，只是在buffer可读的事件函数中，不是将用户的数据发送给其他用户，而是直接发送给用户本身。</p>
+<p><em>程序源码：</em> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back1/libevent_echosrv_buffered.c" target="_blank">libevent_echosrv_buffered.c</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back1/Makefile" target="_blank">Makefile</a></p>
+<h2>3.3 编程实例之回显服务器（多线程—per connection per thread）</h2>
+<p><em>设计思想：</em>上面的方法单纯使用libevent的简单函数来实现服务，但是这里，我们假设我们需要处理的客户端很少，于是我们可以使用对于每个连接我们分配一个线程这样的方式来实现对用户的服务。这种方式简单有效，一对一服务，就算业务逻辑出现阻塞也不怕。</p>
+<p><em>程序分析</em></p>
+<p>首先定义了一些数据结构，worker数据结构定义的是一个工作者，它包含有一个工作线程，和结束标志，需要获取的工作队列，和建立链表需要的指针。job数据结构定义的是操作一个job的方法和对象，这回到程序中，实际上就是指的是事件发生后，封装好的client结构体和处理这个结构体的方法。workqueue数据结构指的是当前的工作队列中的工作者，以及工作队列中的待完成的工作，以及互斥锁和条件变量（因为多个工作进程需要访问这些资源）。</p>
+<p>具体的流程就是，用一个主线程监听一个套接字，并将套接字接受到的连接accept，并创建一个client数据结构保存该连接的信息，在这个client结构中注册一个bufferevent事件，注册到client-&gt;evbase上（这时候这是向client中的evbase注册了一个事件还没有进行循环这个事件集）。</p>
+<p>接着，当监听到某个client有bufferevent事件发生，主线程就把该client结构体和需要进行的工作方法包装成一个job结构，然后把这个job扔到workqueue上去，并通知各个工作者。而后，各个工作者开着的线程就被激活了，疯狂地去workqueue上去抢工作做，某个worker拿到工作后，就可以解包job，根据job的工作说明书（job_function）操作工作对象（client）了。这里，job的工作说明有是循环client中的client-&gt;evbase，于是这样线程就会一直去监视这个连接的状态，如果有数据就这会调用回调函数进行处理。同时，这个线程也就是阻塞在这里，这对这一个连接负责。</p>
+<p>建立workqueue需要的结构体和函数有：</p>
+<pre><code><span class="typedef">typedef struct worker <span class="container">{
+    <span class="title">pthread_t</span> <span class="title">thread</span>;
+    <span class="title">int</span> <span class="title">terminate</span>;
+    <span class="title">struct</span> <span class="title">workqueue</span> *<span class="title">workqueue</span>;
+    <span class="title">struct</span> <span class="title">worker</span> *<span class="title">prev</span>;
+    <span class="title">struct</span> <span class="title">worker</span> *<span class="title">next</span>;
+}</span> worker_t;</span>
+
+<span class="typedef">typedef struct job <span class="container">{
+    <span class="title">void</span> (*<span class="title">job_function</span>)(<span class="title">struct</span> <span class="title">job</span> *<span class="title">job</span>);
+    <span class="title">void</span> *<span class="title">user_data</span>;
+    <span class="title">struct</span> <span class="title">job</span> *<span class="title">prev</span>;
+    <span class="title">struct</span> <span class="title">job</span> *<span class="title">next</span>;
+}</span> job_t;</span>
+
+<span class="typedef">typedef struct workqueue <span class="container">{
+    <span class="title">struct</span> <span class="title">worker</span> *<span class="title">workers</span>;
+    <span class="title">struct</span> <span class="title">job</span> *<span class="title">waiting_jobs</span>;
+    <span class="title">pthread_mutex_t</span> <span class="title">jobs_mutex</span>;
+    <span class="title">pthread_cond_t</span> <span class="title">jobs_cond</span>;
+}</span> workqueue_t;</span>
+
+<span class="title">int</span> workqueue_init(workqueue_t *workqueue, int numWorkers);
+
+<span class="title">void</span> workqueue_shutdown(workqueue_t *workqueue);
+
+<span class="title">void</span> workqueue_add_job(workqueue_t *workqueue, job_t *job);</code></pre>
+<p>主线程的on_accept函数为：</p>
+<pre><code>void on_accept(evutil_socket_t fd, short ev, void <span class="variable">*arg</span>) {
+    <span class="keyword">int</span> client_fd;
+    struct sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+       workqueue_t <span class="variable">*workqueue</span> = (workqueue_t <span class="variable">*)</span>arg;
+    client_t <span class="variable">*client</span>;
+    job_t <span class="variable">*job</span>;
+
+    client_fd = <span class="keyword">accept</span>(fd, (struct sockaddr <span class="variable">*)</span>&amp;client_addr, &amp;client_len);
+    <span class="keyword">if</span> (client_fd &lt; <span class="number">0</span>) {
+        <span class="keyword">warn</span>(<span class="string">"accept failed"</span>);
+        <span class="keyword">return</span>;
+    }
+
+    /* Set the client <span class="keyword">socket</span> to non-blocking mode. <span class="variable">*/</span>
+    <span class="keyword">if</span> (evutil_make_socket_nonblocking(client_fd) &lt; <span class="number">0</span>) 
+    {
+        <span class="keyword">warn</span>(<span class="string">"failed to set client socket to non-blocking"</span>);
+        <span class="keyword">close</span>(client_fd);
+        <span class="keyword">return</span>;
+    }
+
+    /* Create a client object. <span class="variable">*/</span>
+    <span class="keyword">if</span> ((client = malloc(sizeof(<span class="variable">*client</span>))) == NULL) 
+    {
+        <span class="keyword">warn</span>(<span class="string">"failed to allocate memory for client state"</span>);
+        <span class="keyword">close</span>(client_fd);
+        <span class="keyword">return</span>;
+    }
+    memset(client, <span class="number">0</span>, sizeof(<span class="variable">*client</span>));
+    client-&gt;fd = client_fd;
+
+    <span class="regexp">/* Add any custom code anywhere from here to the end of this function
+     * to initialize your application-specific attributes in the client struct.
+     */</span>
+
+    <span class="keyword">if</span> ((client-&gt;output_buffer = evbuffer_new()) == NULL) 
+    {
+        <span class="keyword">warn</span>(<span class="string">"client output buffer allocation failed"</span>);
+        closeAndFreeClient(client);
+        <span class="keyword">return</span>;
+    }
+
+    <span class="keyword">if</span> ((client-&gt;evbase = event_base_new()) == NULL) 
+    {
+        <span class="keyword">warn</span>(<span class="string">"client event_base creation failed"</span>);
+        closeAndFreeClient(client);
+        <span class="keyword">return</span>;
+    }
+
+    client-&gt;buf_ev = bufferevent_socket_new(client-&gt;evbase, client_fd, BEV_OPT_CLOSE_ON_FREE);
+    <span class="keyword">if</span> ((client-&gt;buf_ev) == NULL) {
+        <span class="keyword">warn</span>(<span class="string">"client bufferevent creation failed"</span>);
+        closeAndFreeClient(client);
+        <span class="keyword">return</span>;
+    }
+    bufferevent_setcb(client-&gt;buf_ev, buffered_on_read, buffered_on_write,
+                  buffered_on_error, client);
+
+    <span class="regexp">/* We have to enable it before our callbacks will be
+     * called. */</span>
+       bufferevent_enable(client-&gt;buf_ev, EV_READ);
+
+    <span class="regexp">/* Create a job object and add it to the work queue. */</span>
+    <span class="keyword">if</span> ((job = malloc(sizeof(<span class="variable">*job</span>))) == NULL) {
+           <span class="keyword">warn</span>(<span class="string">"failed to allocate memory for job state"</span>);
+        closeAndFreeClient(client);
+        <span class="keyword">return</span>;
+    }
+        job-&gt;job_function = server_job_function;
+    job-&gt;user_data = client;
+
+    workqueue_add_job(workqueue, job);
+}</code></pre>
+<p>job中的工作指南为：</p>
+<pre><code>static void server_job_function(struct job <span class="variable">*job</span>) {
+    client_t <span class="variable">*client</span> = (client_t <span class="variable">*)</span>job-&gt;user_data;
+    <span class="regexp">//do</span> <span class="keyword">my</span> job
+    event_base_dispatch(client-&gt;evbase);
+
+    closeAndFreeClient(client);
+    free(job);
+}</code></pre>
+<p><em>程序源码：</em> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back2/echoserver_threaded.c" target="_blank">echoserver_threaded.c</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back2/workqueue.c" target="_blank">workqueue.c</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back2/workqueue.h" target="_blank">workqueue.h</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back2/Makefile" target="_blank">Makefile</a></p>
+<h2>3.4 编程实例之回显服务器（多线程—线程池+异步IO）</h2>
+<p><em>设计思想：</em>假设我们的用户很多，高并发，长连接，那么我们还是来用I/O复用和线程池实现吧，用一个控制线程通过I/O复用负责监听和分发事件，用一组线程池来进行处理事件，这样就可以灵活地将控制逻辑和业务逻辑分开了，见下述讲解。</p>
+<p><em>程序分析</em><br>具体的流程和上面的差不多，用一个主线程监听一个套接字，并将套接字接受到的连接accept，并创建一个client数据结构保存该连接的信息，在这个client结构中注册一个bufferevent事件，但是这里，将事件注册到accept_evbase中，仍然用主线程进行监听。</p>
+<p>而面对监听后出现的事件，将client和操作client的方法打包成一个job，放到上述的workqueue中去，让工作进程来完成。这样的操作和上述的差别在于上述方法将bufferevent注册到client中的evbase中，用工作线程监听，而本方法用主线程监听，工作线程负责处理监听产生的事件。</p>
+<p>这要的差别在于两个函数 on_accept函数:</p>
+<pre><code><span class="keyword">void</span> on_accept(evutil_socket_t fd, <span class="keyword">short</span> ev, <span class="keyword">void</span> *arg) {
+    <span class="keyword">int</span> client_fd;
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    client_t *<span class="keyword">client</span>;
+
+    client_fd = accept(fd, (struct sockaddr *)&amp;client_addr, &amp;client_len);
+    <span class="keyword">if</span> (client_fd &lt; <span class="number">0</span>) {
+        warn(<span class="string">"accept failed"</span>);
+        <span class="keyword">return</span>;
+    }
+
+    <span class="comment">/* Set the client socket to non-blocking mode. */</span>
+    <span class="keyword">if</span> (evutil_make_socket_nonblocking(client_fd) &lt; <span class="number">0</span>) {
+        warn(<span class="string">"failed to set client socket to non-blocking"</span>);
+           close(client_fd);
+        <span class="keyword">return</span>;
+    }
+
+    <span class="comment">/* Create a client object. */</span>
+    <span class="keyword">if</span> ((<span class="keyword">client</span> = malloc(sizeof(*<span class="keyword">client</span>))) == NULL) {
+        warn(<span class="string">"failed to allocate memory for client state"</span>);
+        close(client_fd);
+        <span class="keyword">return</span>;
+    }
+    memset(<span class="keyword">client</span>, <span class="number">0</span>, sizeof(*<span class="keyword">client</span>));
+    <span class="keyword">client</span>-&gt;fd = client_fd;
+
+    <span class="comment">/* Add any custom code anywhere from here to the end of this function
+     * to initialize your application-specific attributes in the client struct.
+     */</span>
+
+    <span class="keyword">if</span> ((<span class="keyword">client</span>-&gt;output_buffer = evbuffer_new()) == NULL) {
+        warn(<span class="string">"client output buffer allocation failed"</span>);
+        closeAndFreeClient(<span class="keyword">client</span>);
+        <span class="keyword">return</span>;
+    }
+    <span class="comment">//需要注意的是，这里注册到evbase_accept</span>
+    <span class="keyword">client</span>-&gt;buf_ev = bufferevent_socket_new(evbase_accept, client_fd,BEV_OPT_CLOSE_ON_FREE);
+    <span class="keyword">if</span> ((<span class="keyword">client</span>-&gt;buf_ev) == NULL) {
+        warn(<span class="string">"client bufferevent creation failed"</span>);
+        closeAndFreeClient(<span class="keyword">client</span>);
+        <span class="keyword">return</span>;
+    }
+    bufferevent_setcb(<span class="keyword">client</span>-&gt;buf_ev, buffered_on_read, buffered_on_write,
+                  buffered_on_error, <span class="keyword">client</span>);
+
+    <span class="comment">/* We have to enable it before our callbacks will be
+     * called. */</span>
+    bufferevent_enable(<span class="keyword">client</span>-&gt;buf_ev, EV_READ);
+}</code></pre>
+<p>在buffered_on_read中，提交job。</p>
+<pre><code>void buffered_on_read(struct bufferevent <span class="variable">*bev</span>, void <span class="variable">*arg</span>) 
+{
+    client_t <span class="variable">*client</span> = (client_t <span class="variable">*)</span>arg;
+    job_t <span class="variable">*job</span>;
+
+    <span class="regexp">/* Create a job object and add it to the work queue. */</span>
+    <span class="keyword">if</span> ((job = malloc(sizeof(<span class="variable">*job</span>))) == NULL) {
+        <span class="keyword">warn</span>(<span class="string">"failed to allocate memory for job state"</span>);
+        closeAndFreeClient(client);
+        <span class="keyword">return</span>;
+    }
+    job-&gt;job_function = server_job_function;
+    job-&gt;user_data = client;
+
+    workqueue_add_job(&amp;workqueue, job);
+}</code></pre>
+<p>在job工作指南server_job_function中就可以做你工作该做的事儿了，根据发来的信息进行数据库处理，http返回等等。</p>
+<p><em>程序源码：</em> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back3/echoserver_threaded.c" target="_blank">echoserver_threaded.c</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back3/workqueue.c" target="_blank">workqueue.c</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back3/workqueue.h" target="_blank">workqueue.h</a> <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/echo_back3/Makefile" target="_blank">Makefile</a></p>
+<h2>4 参考文章</h2>
+<p>[1] <a href="http://www.ibm.com/developerworks/cn/aix/library/au-libev/" target="_blank">http://www.ibm.com/developerworks/cn/aix/library/au-libev/</a><br>[2] <a href="http://wenku.baidu.com/link?url=RmSm9M9mc4buqB_j6BGou5GxgyAn14lif18UUsQ8gr7pClAKGJr3civ8-DM0Xrpv4MdVIajykzbg34ZbGjGEizL8fOYE-EOKAATZIV06qwa" target="_blank">http://wenku.baidu.com/link?url=RmSm9M9mc4buqB_j6BGou5GxgyAn14lif18UUsQ8gr7pClAKGJr3civ8-DM0Xrpv4MdVIajykzbg34ZbGjGEizL8fOYE-EOKAATZIV06qwa</a><br>[3] <a href="http://blog.csdn.net/mafuli007/article/details/7476014" target="_blank">http://blog.csdn.net/mafuli007/article/details/7476014</a><br>[4] <a href="http://blog.csdn.net/sparkliang/article/details/4957667" target="_blank">http://blog.csdn.net/sparkliang/article/details/4957667</a><br>[5] <a href="http://bbs.chinaunix.net/thread-4118501-1-1.html" target="_blank">http://bbs.chinaunix.net/thread-4118501-1-1.html</a><br>[6] <a href="http://bbs.chinaunix.net/thread-3776236-1-1.html" target="_blank">http://bbs.chinaunix.net/thread-3776236-1-1.html</a><br>[7] <a href="http://www.zhihu.com/question/20114168" target="_blank">http://www.zhihu.com/question/20114168</a><br>[8] <a href="http://www.zhihu.com/question/21516827" target="_blank">http://www.zhihu.com/question/21516827</a><br>[9] <a href="http://www.wangafu.net/~nickm/libevent-2.0/doxygen/html/" target="_blank">http://www.wangafu.net/~nickm/libevent-2.0/doxygen/html/</a><br>[10] <a href="https://dl.dropboxusercontent.com/u/3471930/Blog/libevent%E4%B8%AD%E6%96%87%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C.pdf" target="_blank">Libevent中文参考手册</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-02-17T01:49:44.000Z"><a href="/2014/02/17/mysql的c语言操作/">2月 17 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/02/17/mysql的c语言操作/">Linux下mysql的安装和使用(C语言)</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h2>1 mysql的安装</h2>
+<p>我使用的ubuntu在线安装，非常简单，命令为：</p>
+<pre><code>su<span class="operator"><span class="keyword">do</span> apt-<span class="keyword">get</span> install mysql-client mysql-server</code></pre>
+<h2>2 mysql命令集合</h2>
+<p>网络太多了，我就copy一段吧。</p>
+<p>1.linux下启动mysql的命令：</p>
+<pre><code>mysqladmin <span class="operator"><span class="keyword">start</span>
+/ect/init.d/mysql <span class="keyword">start</span> (前面为mysql的安装路径)</code></pre>
+<p>2.linux下重启mysql的命令：</p>
+<pre><code>mysqladmin re<span class="operator"><span class="keyword">start</span>
+/ect/init.d/mysql restart (前面为mysql的安装路径)</code></pre>
+<p>3.linux下关闭mysql的命令：</p>
+<pre><code>mysqladmin <span class="keyword">shutdown</span>
+/ect/init.d/mysql <span class="keyword">shutdown</span> (前面为mysql的安装路径)</code></pre>
+<p>4.连接本机上的mysql：<br>进入目录mysql\bin，再键入命令mysql -uroot -p， 回车后提示输入密码。<br>退出mysql命令：exit（回车）</p>
+<p>5.修改mysql密码：<br>mysqladmin -u用户名 -p旧密码 password 新密码<br>或进入mysql命令行SET PASSWORD FOR root=PASSWORD(“root”);</p>
+<p>6.增加新用户。（注意：mysql环境中的命令后面都带一个分号作为命令结束符）<br>grant select on 数据库.* to 用户名@登录主机 identified by “密码”<br>如增加一个用户test密码为123，让他可以在任何主机上登录， 并对所有数据库有查询、插入、修改、删除的权限。首先用以root用户连入mysql，然后键入以下命令：</p>
+<pre><code><span class="operator"><span class="keyword">grant</span> <span class="keyword">select</span>,<span class="keyword">insert</span>,<span class="keyword">update</span>,<span class="keyword">delete</span> <span class="keyword">on</span> *.* <span class="keyword">to</span> <span class="string">" Identified by "</span><span class="number">123</span><span class="string">";</code></pre>
+<p>7、显示数据库列表。</p>
+<pre><code><span class="title">show</span> <span class="typedef">databases;</span></code></pre>
+<p>8、显示库中的数据表：</p>
+<pre><code><span class="title">use</span> mysql； ／／打开库
+<span class="title">show</span> tables;</code></pre>
+<p>9、显示数据表的结构：</p>
+<pre><code><span class="title">describe</span> 表名;</code></pre>
+<p>10、建库：</p>
+<pre><code><span class="title">create</span> <span class="typedef">database 库名;</span></code></pre>
+<p>11、建表：</p>
+<pre><code><span class="operator"><span class="keyword">create</span> <span class="keyword">table</span> 表名(字段设定列表)；</code></pre>
+<p>12、删库和删表:</p>
+<pre><code><span class="operator"><span class="keyword">drop</span> database 库名;</span>
+<span class="operator"><span class="keyword">drop</span> <span class="keyword">table</span> 表名；</code></pre>
+<p>13、将表中记录清空：</p>
+<pre><code><span class="operator"><span class="keyword">delete</span> <span class="keyword">from</span> 表名;</span>
+<span class="operator"><span class="keyword">truncate</span> <span class="keyword">table</span>  表名;</span></code></pre>
+<p>14、显示表中的记录：</p>
+<pre><code><span class="operator"><span class="keyword">select</span> * <span class="keyword">from</span> 表名;</span></code></pre>
+<p>15、编码的修改</p>
+<p>如果要改变整个mysql的编码格式：<br>启动mysql的时候，mysqld_safe命令行加入  </p>
+<pre><code>--<span class="keyword">default</span>-character-<span class="keyword">set</span>=gbk </code></pre>
+<p>如果要改变某个库的编码格式：在mysql提示符后输入命令  </p>
+<pre><code><span class="operator"><span class="keyword">alter</span> database db_name <span class="keyword">default</span> <span class="keyword">character</span> <span class="keyword">set</span> gbk;</span></code></pre>
+<p>16、重命名表</p>
+<pre><code><span class="operator"><span class="keyword">alter</span> <span class="keyword">table</span> t1 rename t2;</span></code></pre>
+<p>17.查看sql语句的效率</p>
+<pre><code> explain <span class="tag">&lt; <span class="attribute">table_name</span> &gt;</span></code></pre>
+<p>例如：explain select * from t3 where id=3952602;</p>
+<p>18.用文本方式将数据装入数据库表中(例如D:/mysql.txt)</p>
+<pre><code>mysql&gt; <span class="operator"><span class="keyword">LOAD</span> DATA <span class="keyword">LOCAL</span> INFILE <span class="string">"D:/mysql.txt"</span> <span class="keyword">INTO</span> <span class="keyword">TABLE</span> MYTABLE;</span></code></pre>
+<p>还不能满足你的话，来<a href="http://www.linux.org/threads/databases-with-linux.4222/" target="_blank">这里看API</a>吧。</p>
+<h2>2 C语言的API函数</h2>
+<p>mysql对于C语言的API，使用较为频繁的有：<br>mysql_init，mysql_real_connect，mysql_query，mysql_store_result，mysql_fetch_row，mysql_free_result，mysql_close，mysql_init</p>
+<p>具体的使用方法如下。</p>
+<p>（1）mysql_init</p>
+<p>作用：是初始化MYSQL变量，为mysql_real_connect()做准备。</p>
+<p>用法：</p>
+<pre><code>MYSQL <span class="variable">*mysql_init</span>(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>返回值：MYSQL句柄或描述符；内存不足是为NULL；</p>
+<p>（2）mysql_real_connect</p>
+<p>功能：链接mysql数据库；</p>
+<p>用法：</p>
+<pre><code>MYSQL *mysql_real_connect(MYSQL *mysql,\
+
+<span class="keyword">const</span> <span class="keyword">char</span> *host, <span class="keyword">const</span> <span class="keyword">char</span>*user, \
+
+<span class="keyword">const</span> <span class="keyword">char</span> *passwd, <span class="keyword">const</span> <span class="keyword">char</span>*db, \
+
+<span class="keyword">unsigned</span> <span class="keyword">int</span> port, <span class="keyword">const</span> <span class="keyword">char</span>*unix_socket, \
+
+<span class="keyword">unsigned</span> <span class="keyword">int</span> client_flag)</code></pre>
+<p>说明：如果port!=0，则将作为TCP/IP端口使用，默认为0；如果unix_socket!=NULL，则可指定socket或命名PIPE，默认为NULL；Client_flag可以指定特定的值（略），默认为0.</p>
+<p>（3）mysql_query</p>
+<p>功能：查询实施</p>
+<p>用法：</p>
+<pre><code><span class="keyword">int</span> mysql_query(MYSQL *mysql, <span class="keyword">const</span> <span class="keyword">char</span> *query)</code></pre>
+<p>说明：query为数据库操作命令字符串，本义是查询（select），可包括select,update,insert,delete等对数据库操作的命令。mysql_query不能用来处理二进制数据，处理二进制数据可使用mysql_real_query。</p>
+<p>返回值：0表示正常，非0表示发生了错误。</p>
+<p>（4）mysql_store_resul</p>
+<p>功能：结果集处理。如果使用mysql_query运行的是一个SELECT语句，或其它可以返回结果的查询，可用函数mysql_store_result来访问返回结果并并将其保存在一个变量中，以便做进一步处理。</p>
+<p>用法：</p>
+<pre><code>MYSQL_RES <span class="variable">*mysql_store_result</span>(MYSQL <span class="variable">*mysql</span>)
+
+MYSQL_RES <span class="variable">*mysql_use_result</span>(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>说明：mysql为mysql_real_connect函数的返回值。</p>
+<p>（5）结果集的使用</p>
+<p>使用了mysql_store_result函数保存结果后，可以使用以下函数对结果集进行处理。</p>
+<p>①获得结果集中的行数：</p>
+<pre><code><span class="title">my_ulonglong</span> mysql_num_rows(MYSQL_RES *result)</code></pre>
+<p>②获得结果集行的域字段数：</p>
+<pre><code>unsigned <span class="keyword">int</span> mysql_num_fields(MYSQL_RES <span class="variable">*result</span>)
+
+unsigned <span class="keyword">int</span> mysql_num_fields(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>③读取结果集中的一行：</p>
+<pre><code><span class="title">MYSQL_ROW</span> mysql_fetch_row(MYSQL_RES *result)</code></pre>
+<p>④获取结果集中行的域段数：</p>
+<pre><code>unsigned <span class="keyword">int</span> mysql_field_count(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>⑤获得结果集中的域的属性：</p>
+<pre><code>MYSQL_FIELD <span class="variable">*mysql_fetch_field</span>(MYSQL_RES <span class="variable">*result</span>)</code></pre>
+<p>⑥获得域属性数组：</p>
+<pre><code>MYSQL_FIELD <span class="variable">*mysql_fetch_fields</span>(MYSQL_RES <span class="variable">*result</span>)</code></pre>
+<p>⑦查询被update、delete、insert等受影响的行：</p>
+<pre><code><span class="title">my_ulonglong</span> mysql_affected_rows(MYSQL *mysql)</code></pre>
+<p>（6）善后工作</p>
+<p>当对数据库使用完毕后，应对所创建的变量等进行释放：</p>
+<pre><code><span class="function"><span class="title">mysql_free_result</span><span class="params">(result)</span>;
+<span class="title">mysql_close</span><span class="params">(&amp;mysql)</span>;</code></pre>
+<p>（7）错误处理</p>
+<p>方法有2：利用函数的返回值来判断函数执行是否正确；2.使用mysql提供的错误号和错误信息：</p>
+<p>错误号：</p>
+<pre><code>unsigned <span class="keyword">int</span> mysql_errno(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>错误信息：</p>
+<pre><code>char <span class="variable">*mysql_error</span>(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>（8）辅助函数</p>
+<p>获取客户机版本信息：</p>
+<pre><code><span class="keyword">char</span> *mysql_get_client_info(<span class="keyword">void</span>)</code></pre>
+<p>获取主机信息：</p>
+<pre><code>char <span class="variable">*mysql_get_host_info</span>(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>获取协议版本信息：</p>
+<pre><code>unsigned <span class="keyword">int</span> mysql_get_proto_info(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>获取服务器版本信息：</p>
+<pre><code>char <span class="variable">*mysql_get_server_info</span>(MYSQL <span class="variable">*mysql</span>)</code></pre>
+<p>获取可用数据库列表：</p>
+<pre><code>MYSQL_RES <span class="variable">*mysql_list_dbs</span>(MYSQL <span class="variable">*mysql</span>, const char <span class="variable">*wild</span>)</code></pre>
+<p>获取数据库的可有表列表：</p>
+<pre><code>MYSQL_RES <span class="variable">*mysql_list_tables</span>(MYSQL <span class="variable">*mysql</span>, const char <span class="variable">*wild</span>)</code></pre>
+<h2>3 C语言操作mysql的实例</h2>
+<p>假设数据库中已经创建了一个test库，库中有一个children表，表中有点小数据。现在将这些数据读取出来。</p>
+<pre><code><span class="preprocessor">#include "stdio.h"</span>
+<span class="preprocessor">#include "string.h"</span>
+<span class="preprocessor">#include "mysql/mysql.h"</span>
+
+int main()
+{
+    MYSQL mysql<span class="comment">;</span>
+    MYSQL_RES *res<span class="comment">;</span>
+    MYSQL_ROW row<span class="comment">;</span>
+    int i,j<span class="comment">;</span>
+
+    char *query = <span class="string">"select * from children;"</span><span class="comment">;</span>
+
+    mysql_init(&amp;mysql)<span class="comment">;</span>
+
+    if(!mysql_real_connect(&amp;mysql,<span class="string">"localhost"</span>,<span class="string">"root"</span>,<span class="string">"open"</span>,<span class="string">"test"</span>,<span class="number">0</span>,NULL,<span class="number">0</span>))
+    {
+        printf(<span class="string">"Error in connecting"</span>)<span class="comment">;</span>
+    }
+
+    if(mysql_query(&amp;mysql,query))
+    {
+        printf(<span class="string">"Error in querying"</span>)<span class="comment">;</span>
+    }
+
+    res = mysql_store_result(&amp;mysql)<span class="comment">;</span>
+
+    while(row = mysql_fetch_row(res))
+    {
+        for(i=<span class="number">0</span><span class="comment">;i&lt;mysql_num_fields(res);i++)</span>
+        {
+            fprintf(stdout,<span class="string">"%s "</span>,row[i])<span class="comment">;</span>
+        }
+        printf(<span class="string">"\n"</span>)<span class="comment">;</span>
+    }
+
+    mysql_free_result(res)<span class="comment">;</span>
+    mysql_close(&amp;mysql)<span class="comment">;</span>
+    return <span class="number">0</span><span class="comment">;</span>
+}</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2014-02-17T01:44:56.000Z"><a href="/2014/02/17/数组和指针问题/">2月 17 2014</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2014/02/17/数组和指针问题/">数组和指针问题</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h1><code>int (*a)[n]</code>和<code>int *a[n]</code>的区别</h1>
+<p><code>int* a[n]</code>，说明a是一个指针数组。   </p>
+<p>这是因为对于a来说，<code>[]</code>的优先级大于<code>*</code>的优先级，所以a是一个数组，同时再看左边，说明a这个数组中的内容都是指针值(地址值)。所以说，a是一个指针数组，即数组内容为指针的这样一个n维的数组。    </p>
+<p>如果计算a的字节数，则是（n<em>4）字节，每个指针分配4个字节，n个指针构成的数组字节数即为 n\</em>4。</p>
+<p>而<code>int a[][n]</code>或者<code>int (*a)[n]</code>则根据括号的优先级大于<code>[]</code>的优先级，所以说明a是一个指针，再看右边<code>[]</code>，说明这个指针所指向的内容是一个n维的数组。</p>
+<p>同理，计算这种情况下a的字节数，则是4个字节，因为这种定义，系统给分配的空间就是一个指针，因为就是4个字节。</p>
+<p>接下来，说一说，在什么情况下，会使用上述的两种定义，首先，数组指针的使用。数组指针中可以存放n个指针，因为在定义后，可以将若干个地址放入数组中，然后将数组可以作为参数传递等。</p>
+<p>而对于指向数组的指针，则是一种比较典型的数据类型，比如，<code>a[m][n]</code>是一个2维数组，那么<code>a</code>的数据类型就是<code>(*a)[n]</code>，而<code>a[0]</code>的数据类型则是一个指针<code>*a</code>，这样在二维或者是多维数组作为实参向函数中进行传递时，则可以定义函数的参数类型为<code>(*a)[n]</code>，实参为数组名a。</p>
+<h1>如何将代码暂时存储到远端</h1>
+<p>本地使用git push到远端，从远端下载后，再将远端的代码使用git删除。<br>删除使用的方法：   </p>
+<pre><code><span class="comment">git</span> <span class="comment">rm</span> <span class="literal">-</span><span class="literal">-</span><span class="comment">cached</span> <span class="literal">-</span><span class="comment">rf</span> <span class="string">.</span>
+<span class="comment">git</span> <span class="comment">commit</span> <span class="literal">-</span><span class="comment">m</span> <span class="comment">"delete</span> <span class="comment">all"</span>
+<span class="comment">git</span> <span class="comment">push</span> <span class="literal">-</span><span class="comment">u</span> <span class="comment">origin</span> <span class="comment">master</code></pre>
+<p>删除远端内容 而不删除本地的文件。</p>
+<h1>C语言的内存存储和<code>char a[]</code>和<code>char *a</code>内存上的区别</h1>
+<h2>内存分配概览</h2>
+<p>一个由c/C++编译的程序占用的内存分为以下几个部分<br>1、栈区（stack）—由编译器自动分配释放，存放函数的参数值，局部变量的值等。其操作方式类似于<br>数据结构中的栈。<br>2、堆区（heap）—一般由程序员分配释放，若程序员不释放，程序结束时可能由OS回收。注意它与数据<br>结构中的堆是两回事，分配方式倒是类似于链表，呵呵。<br>3、全局区（静态区）（static）—全局变量和静态变量的存储是放在一块的，初始化的全局变量和静态<br>变量在一块区域，未初始化的全局变量和未初始化的静态变量在相邻的另一块区域。程序结束后由系统<br>释放。<br>4、文字常量区—常量字符串就是放在这里的。程序结束后由系统释放。<br>5、程序代码区   </p>
+<p>这是一个前辈写的，非常详细</p>
+<pre><code>//main.cpp
+int a=0;//全局初始化区
+char* p1;//全局未初始化区
+main()
+<span class="special">{</span>
+    int b;栈
+    char s<span class="special">[</span><span class="special">]</span>=<span class="command">\"</span>abc<span class="command">\"</span>;//栈
+    char* p2;//栈
+    char* p3=<span class="command">\"</span>123456<span class="command">\"</span>;//123456<span class="command">\\</span>0在常量区，p3在栈上。
+    static int c=0；//全局（静态）初始化区
+    p1 = (char*)malloc(10);
+    p2 = (char*)malloc(20);//分配得来得10和20字节的区域就在堆区。
+    strcpy(p1,<span class="command">\"</span>123456<span class="command">\"</span>);//123456<span class="command">\\</span>0放在常量区，编译器可能会将它与p3所向<span class="command">\"</span>123456<span class="command">\"</span>优化成一个
+    地方。
+<span class="special">}</span></code></pre>
+<h2>堆和栈的理论知识</h2>
+<h3>申请方式</h3>
+<p>stack:<br>由系统自动分配。例如，声明在函数中一个局部变量int b,系统自动在栈中为b开辟空间<br>heap:<br>需要程序员自己申请，并指明大小，在c中malloc函数<br>如p1=(char<em>)malloc(10),如p2=(char\</em>)malloc(10),<br>但是注意p1、p2本身是在栈中的。</p>
+<h3>申请后系统的响应</h3>
+<p>栈：只要栈的剩余空间大于所申请空间，系统将为程序提供内存，否则将报异常提示栈溢出。<br>堆：首先应该知道操作系统有一个记录空闲内存地址的链表，当系统收到程序的申请时，<br>会遍历该链表，寻找第一个空间大于所申请空间的堆结点，然后将该结点从空闲结点链表中删除，并将<br>该结点的空间分配给程序，另外，对于大多数系统，会在这块内存空间中的首地址处记录本次分配的大<br>小，这样，代码中的delete语句才能正确的释放本内存空间。另外，由于找到的堆结点的大小不一定正<br>好等于申请的大小，系统会自动的将多余的那部分重新放入空闲链表中。   </p>
+<h3>申请大小的限制</h3>
+<p>栈：在Windows下,栈是向低地址扩展的数据结构，是一块连续的内存的区域。这句话的意思是栈顶的地<br>址和栈的最大容量是系统预先规定好的，在WINDOWS下，栈的大小是2M（也有的说是1M，总之是一个编译<br>时就确定的常数），如果申请的空间超过栈的剩余空间时，将提示overflow。因此，能从栈获得的空间<br>较小。<br>堆：堆是向高地址扩展的数据结构，是不连续的内存区域。这是由于系统是用链表来存储的空闲内存地<br>址的，自然是不连续的，而链表的遍历方向是由低地址向高地址。堆的大小受限于计算机系统中有效的<br>虚拟内存。由此可见，堆获得的空间比较灵活，也比较大。   </p>
+<h3>申请效率的比较</h3>
+<p>栈:由系统自动分配，速度较快。但程序员是无法控制的。<br>堆:是由new分配的内存，一般速度比较慢，而且容易产生内存碎片,不过用起来最方便.<br>另外，在WINDOWS下，最好的方式是用VirtualAlloc分配内存，他不是在堆，也不是在栈,而是直接在进<br>程的地址空间中保留一块内存，虽然用起来最不方便。但是速度快，也最灵活。   </p>
+<h3>堆和栈中的存储内容</h3>
+<p>栈：在函数调用时，第一个进栈的是主函数中后的下一条指令（函数调用语句的下一条可执行语句）的<br>地址，然后是函数的各个参数，在大多数的C编译器中，参数是由右往左入栈的，然后是函数中的局部变<br>量。注意静态变量是不入栈的。<br>当本次函数调用结束后，局部变量先出栈，然后是参数，最后栈顶指针指向最开始存的地址，也就是主<br>函数中的下一条指令，程序由该点继续运行。<br>堆：一般是在堆的头部用一个字节存放堆的大小。堆中的具体内容由程序员安排。   </p>
+<h3>存取效率的比较</h3>
+<p>char s1[]=\&quot;aaaaaaaaaaaaaaa\&quot;;<br>char* s2=\&quot;bbbbbbbbbbbbbbbbb\&quot;;<br>aaaaaaaaaaa是在运行时刻赋值的；bbbbbbbbbbb是在编译时就确定的。<br>但是，在以后的存取中，在栈上的数组比指针所指向的字符串(例如堆)快。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  
+    <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2013-12-18T06:39:23.000Z"><a href="/2013/12/18/grep恢复误删除文件内容/">12月 18 2013</a></time>
       
       
@@ -131,162 +859,6 @@ important <span class="keyword">log</span> <span class="keyword">file</span> <sp
 
 
   
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-12-11T06:29:09.000Z"><a href="/2013/12/11/shell编程基础练习/">12月 11 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/12/11/shell编程基础练习/">shell编程基础练习</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>shell作为一个人机交互的接口,在Linux中发挥着很大的作用，而shell编程则是减轻系统工程师工作的利器，这里总结一下shell编程的主要内容（趁着程序运行的空档）.</p>
-<p>本文的基本结构是shell编程的基本命令和常用的实例。</p>
-<h2>命令篇</h2>
-<h3>环境变量</h3>
-<p>环境变量指的是当shell运行后，系统默认给shell传递的变量。   </p>
-<pre><code><span class="variable">$pwd</span>:显示当前路径    
-<span class="variable">$HOME</span>:当前用户的主目录
-<span class="variable">$#</span>:shell中参数的个数
-<span class="variable">$0</span>:shell文件名
-<span class="variable">$1</span>-<span class="variable">$n</span>:参数值
-具体还有部分预设参数列表，见(此链接)[http:<span class="comment">//www.cnblogs.com/fhefh/archive/2011/04/15/2017613.html]。</span></code></pre>
-<h3>文件和目录操作</h3>
-<p>文件操作的主要命令有：    </p>
-<pre><code>cd:切换目录
-<span class="keyword">ls</span>:列出目录下文件 通常含有 -a(隐藏文件) -l(文件权限)
-mkdir,rmdir:创建，删除目录
-cp,mv,rm:拷贝，移动，删除文件或者目录(rm在删除目录时需要加-rf)
-ln:建立硬链接(ln -s可以建立符号链接)
-chmod:改变文件权限
-<span class="comment">//chmod 对文件权限的改变方式有两种：符号方法和八进制方法</span>
-<span class="comment">//所谓符号方法就是采用(who)(action)(permissions)来描述对对权限的操作</span>
-<span class="comment">//这里who的选择有:u g o a,分别表示属主，组，其他和所有用户</span>
-<span class="comment">//这里action的选择有：+ - =，分别表示增加，减少和设定文件权限。</span>
-<span class="comment">//这里permision的选择有:r w x t s,分别表示读，写，执行，粘滞位和SGID位</span>
-<span class="comment">//所以给个例子 chmod a+x hello.c 意思就是对hello文件的所有人增加执行权限</span>
-<span class="comment">//而所谓八进制的方法则是对每种权限用一个数字进行表示，读4写2执行1,对所有用户生效。</span>
-<span class="comment">//同样举个例子 chmod 777 hello.c 意思是任何人可以进行任何操作</span>
-chown:改变文件的属主 -R(递归改变该文件夹内多有文件的属主)
-<span class="comment">//这里给出用法 chown *user:group files*</span>
-chgrp:改变文件所属的组 同样可以使用上述的-R
-<span class="comment">//这里给出用户 chgrp *group files*</span></code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-          <div class="alignleft">
-            <a href="/2013/12/11/shell编程基础练习/#more" class="more-link">Read More</a>
-          </div>
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-12-10T08:34:37.000Z"><a href="/2013/12/10/module-graceful-fs-for-npm/">12月 10 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/12/10/module-graceful-fs-for-npm/">module graceful-fs for npm</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h1>问题：</h1>
-<p>今天使用hexo时发现错误，hexo:command not found.于是重新安装hexo.但是在安装好npm后，却发现运行</p>
-<pre><code><span class="attribute">npm</code></pre>
-<p>出现错误，没有找到模块graceful-fs,在纠结了半天之后，发现这是node的版本问题，导致了npm不能正确安装express.</p>
-<h1>解决方案：</h1>
-<p>于是，在node的包管理器中重新安装node至高版本，再去运行npm安装hexo，就可以解决问题了。命令：</p>
-<pre><code><span class="title">nvm</span> install v0<span class="number">.8</span>
-<span class="title">nvm</span> use <span class="number">0.8</span>
-<span class="title">sudo</span> npm install hexo -g //这一句有没有都没关系</code></pre>
-<p>现在再使用hexo命令就可以了。</p>
-<blockquote>
-<p>ps:不知道为什么我的虚拟机每次重启后都不能使用hexo命令,于是我在/etc/rc.local文件下加入了 </p>
-</blockquote>
-<pre><code><span class="title">nvm</span> use <span class="number">0</span>.<span class="number">8</span></code></pre>
-<p>这样，每次重启后后自动切换node.js的版本，从而就可以顺利使用hexo命令了。</p>
-<p>over!</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
-    <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-11-26T08:28:22.000Z"><a href="/2013/11/26/预读书单/">11月 26 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/11/26/预读书单/">预读书单</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>好长时间没有补血了，列出最近需要看的书的目录如下。</p>
-<p>数据结构及应用算法教程<br>TP311.12/3/-2    2511712     -    九龙湖校区    中文图书阅览室（4）    可借</p>
-<p>C和指针<br>TP312C/509/-2    2106402     -    九龙湖校区    中文图书阅览室（4）    可借</p>
-<p>鸟哥私房菜<br>TP316.89/240/-2    1997003     -    九龙湖校区    中文图书阅览室（4）    可借</p>
-<p>计算机网络自顶向下<br>图书馆暂时没有借阅</p>
-<p>先这么多吧。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  
 
   <nav id="pagination">
   
@@ -311,17 +883,23 @@ chgrp:改变文件所属的组 同样可以使用上述的-R
   <h3 class="title">标签</h3>
   <ul class="entry">
   
+    <li><a href="/tags/C/">C</a><small>1</small></li>
+  
     <li><a href="/tags/book/">book</a><small>1</small></li>
   
     <li><a href="/tags/git/">git</a><small>1</small></li>
   
     <li><a href="/tags/hexo/">hexo</a><small>2</small></li>
   
+    <li><a href="/tags/libevent/">libevent</a><small>1</small></li>
+  
     <li><a href="/tags/life/">life</a><small>1</small></li>
   
-    <li><a href="/tags/linux/">linux</a><small>2</small></li>
+    <li><a href="/tags/linux/">linux</a><small>5</small></li>
   
     <li><a href="/tags/markdown/">markdown</a><small>1</small></li>
+  
+    <li><a href="/tags/mysql/">mysql</a><small>1</small></li>
   
     <li><a href="/tags/npm/">npm</a><small>1</small></li>
   
@@ -330,6 +908,8 @@ chgrp:改变文件所属的组 同样可以使用上述的-R
     <li><a href="/tags/shell/">shell</a><small>2</small></li>
   
     <li><a href="/tags/test/">test</a><small>1</small></li>
+  
+    <li><a href="/tags/网络编程/">网络编程</a><small>1</small></li>
   
   </ul>
 </div>
@@ -341,23 +921,23 @@ chgrp:改变文件所属的组 同样可以使用上述的-R
   <ul class="entry">
     
       <li>
+        <a href="/2014/02/17/libevent介绍和实例/">libevent和基于libevent的网络编程</a>
+      </li>
+    
+      <li>
+        <a href="/2014/02/17/mysql的c语言操作/">Linux下mysql的安装和使用(C语言)</a>
+      </li>
+    
+      <li>
+        <a href="/2014/02/17/数组和指针问题/">数组和指针问题</a>
+      </li>
+    
+      <li>
         <a href="/2013/12/18/grep恢复误删除文件内容/">grep恢复误删除文件内容(转)</a>
       </li>
     
       <li>
         <a href="/2013/12/11/远方/">远方</a>
-      </li>
-    
-      <li>
-        <a href="/2013/12/11/shell编程基础练习/">shell编程基础练习</a>
-      </li>
-    
-      <li>
-        <a href="/2013/12/10/module-graceful-fs-for-npm/">module graceful-fs for npm</a>
-      </li>
-    
-      <li>
-        <a href="/2013/11/26/预读书单/">预读书单</a>
       </li>
     
   </ul>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   
-  <title>浅水游鱼</title>
+  <title>归档：2014 | 浅水游鱼</title>
   <meta name="author" content="NearMeng">
   
   <meta name="description" content="学习娱乐的栖息地">
@@ -46,7 +46,11 @@
 <div class="clearfix"></div></header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article class="post">
+<h2 class="archive-title">2014</h2>
+
+
+  
+    <article class="post">
   
   <div class="post-content">
     <header>
@@ -494,8 +498,8 @@ on_accept(<span class="keyword">int</span> fd, short ev, void <span class="varia
 
 
 
-
-  <article class="post">
+  
+    <article class="post">
   
   <div class="post-content">
     <header>
@@ -694,8 +698,8 @@ int main()
 
 
 
-
-  <article class="post">
+  
+    <article class="post">
   
   <div class="post-content">
     <header>
@@ -773,96 +777,14 @@ main()
 
 
 
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-12-18T06:39:23.000Z"><a href="/2013/12/18/grep恢复误删除文件内容/">12月 18 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/12/18/grep恢复误删除文件内容/">grep恢复误删除文件内容(转)</a></h1>
   
 
-    </header>
-    <div class="entry">
-      
-        <p>在 Linux 上如果事先没有用别名（alias）修改默认的 rm 功能，rm 后文件就会丢失，幸运的是，在一般的删除文件操作中，Linux 并不会立即清空存储该文件的 block 内容，而只会释放该文件所占用的 inode 和 data block，Linux 上 rm 的过程其实就是将 inode bitmap 和 data block bitmap 中的相应标识设为空闲状态的过程，并不涉及到真正的数据，这也是为什么在 Linux 下删除大文件这么快速的原因，因为大文件所占的磁盘根本就没有清空。所以，如果我们能找到文件对应的 inode，由此查到相应的 data block，就可能从磁盘上把已删除的文件恢复出来，很多文件/磁盘恢复工具都是这么做的。 </p>
-<p>一般来说二进制文件、库文件等删除后都可以从其他 Linux 拷贝恢复，不是很要紧，如果自己辛苦写的脚本或者配置文件误删了就杯具了。误删这种蠢事经常在 VPSee 身上发生，最近一次是在今年年初的时候，开了 screen 多次 ssh 到不同服务器上，在前后切换的过程中删除了一个很肯定的配置文件，后来发现删的文件是对的，可惜在一台错误的服务器上，本来应该在 A 服务器上删除 file.txt 结果在 B 服务器上删除了 file.txt，多个 screen 和 ssh 把自己搞晕了，而且主机名没有安排好，多台机器都是用的 localhost，不利于识别当时的环境。如果使用 Linux 的时候不幸误删了一个文本文件怎么办呢？ </p>
-<p>先临时建一个文本文件 vpsee.log 做测试，然后删除这个文件： </p>
-<pre><code>$ echo <span class="string">"important log file for vpsee.com"</span> &gt; vpsee.<span class="keyword">log</span> 
-
-$ cat vpsee.<span class="keyword">log</span> 
-important <span class="keyword">log</span> <span class="keyword">file</span> <span class="keyword">for</span> vpsee.com </code></pre>
-<p>$ rm vpsee.log如果能记住刚才删除文件中的某个关键字的话可以用 grep 搜索整个 /dev/sda1，-a 标志位的意思是把 /dev/sda1 这个分区看成是文本形式的（分区本身是二进制形式的），-B 10 -A 100 的意思是如果找到关键字就打印出其前10行和后100行的内容： </p>
-<pre><code><span class="comment">grep</span> <span class="literal">-</span><span class="comment">a</span> <span class="literal">-</span><span class="comment">B</span> <span class="comment">10</span> <span class="literal">-</span><span class="comment">A</span> <span class="comment">100</span> <span class="comment">'vpsee</span>.<span class="comment">com'</span> <span class="comment">/dev/sda1</span> &gt; <span class="comment">tmp</span>.<span class="comment">txt</code></pre>
-<p>在一堆 @ 之间可以找到我们刚才删除的内容： </p>
-<pre><code><span class="variable">$ </span>vi tmp.txt </code></pre>
-<p>…<br>@$^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@Ç^@^@^@^A^@^@^@^@^@^@^@^@^@^@^@È^K^@^@^@<br>^@^@^@^@^@^@^@^@^@^@^@^A^@^@^@^@^@^@^@^Q^@^@^@^C^@^@^@^@^@^@^@^@^@^@^@È^K^@^@×^@<br>^@^@important log file for vpsee.com<br>@<br>@<br>…</p>
-<p>当然，如果误删了二进制、doc、png/jpg/gif 之类的文件，可以用一些第三方 ext2/ext3 文件恢复工具帮助恢复文件，比如 TestDisk, PhotoRec 等。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-
-  <article class="post">
+  <nav id="pagination">
   
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2013-12-11T06:47:41.000Z"><a href="/2013/12/11/远方/">12月 11 2013</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2013/12/11/远方/">远方</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p><img src="http://distilleryimage8.s3.amazonaws.com/56aae2fcb54911e2859c22000a9f0a20_7.jpg" alt="pic" title="distance"></p>
-<p>最美的风景在远方，最想要做的事情就是去看一看。<br>:)</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-
-
-<nav id="pagination">
-  
-  
-    <a href="/page/2/" class="alignright next">下一页</a>
   
   <div class="clearfix"></div>
-</nav></div></div>
+</nav>
+</div></div>
     <aside id="sidebar" class="alignright">
   <div class="search">
   <form action="//google.com/search" method="get" accept-charset="utf-8">
