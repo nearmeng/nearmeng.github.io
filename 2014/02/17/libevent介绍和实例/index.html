@@ -90,12 +90,23 @@
 <h3>安装</h3>
 <p>libevent的安装很简单，我是直接从github上clone下<a href="https://github.com/nmathewson/Libevent" target="_blank">一个源码</a>，然后进行编译安装的。   </p>
 <p>具体的命令是（假设你已经安装了git）：</p>
-<pre><code><span class="preprocessor"># git clone https://github.com/nmathewson/Libevent.git</span>
-<span class="preprocessor"># cd Libevent</span>
-<span class="preprocessor"># sh autogen.sh</span>
-<span class="preprocessor"># ./configure &amp;&amp; make</span>
-<span class="preprocessor"># make install</span>
-<span class="preprocessor"># make verify  //验证安装</span></code></pre>
+<figure class="highlight"><table><tr><td class="gutter"><pre>1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre>
+	<span class="comment"># git clone https://github.com/nmathewson/Libevent.git</span>
+	<span class="comment"># cd Libevent</span>
+	<span class="comment"># sh autogen.sh</span>
+	<span class="comment"># ./configure &amp;&amp; make</span>
+	<span class="comment"># make install</span>
+	<span class="comment"># make verify  //验证安装</span>
+</pre></td></tr></table></figure>
+
+
 <h2>2 Linux下libevent主要API介绍</h2>
 <p>现在的libevent版本已经到达libevent2了，其增加了多线程的支持，API函数也发生了一些微小的变化。</p>
 <ul>
