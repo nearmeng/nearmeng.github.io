@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   
-  <title>C | 浅水游鱼</title>
+  <title>归档：2014/5 | 浅水游鱼</title>
   <meta name="author" content="NearMeng">
   
   <meta name="description" content="学习娱乐的栖息地">
@@ -46,7 +46,7 @@
 <div class="clearfix"></div></header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-<h2 class="archive-title tag">C</h2>
+<h2 class="archive-title">2014/5</h2>
 
 
   
@@ -56,34 +56,27 @@
     <header>
       
         <div class="icon"></div>
-        <time datetime="2014-02-17T01:44:56.000Z"><a href="/2014/02/17/数组和指针问题/">2月 17 2014</a></time>
+        <time datetime="2014-05-26T15:13:45.000Z"><a href="/2014/05/26/protobuf的使用/">5月 26 2014</a></time>
       
       
   
-    <h1 class="title"><a href="/2014/02/17/数组和指针问题/">数组和指针问题</a></h1>
+    <h1 class="title"><a href="/2014/05/26/protobuf的使用/">protobuf的使用</a></h1>
   
 
     </header>
     <div class="entry">
       
-        <h1><code>int (*a)[n]</code>和<code>int *a[n]</code>的区别</h1>
-<p><code>int* a[n]</code>，说明a是一个指针数组。   </p>
-<p>这是因为对于a来说，<code>[]</code>的优先级大于<code>*</code>的优先级，所以a是一个数组，同时再看左边，说明a这个数组中的内容都是指针值(地址值)。所以说，a是一个指针数组，即数组内容为指针的这样一个n维的数组。    </p>
-<p>如果计算a的字节数，则是（n<em>4）字节，每个指针分配4个字节，n个指针构成的数组字节数即为 n\</em>4。</p>
-<p>而<code>int a[][n]</code>或者<code>int (*a)[n]</code>则根据括号的优先级大于<code>[]</code>的优先级，所以说明a是一个指针，再看右边<code>[]</code>，说明这个指针所指向的内容是一个n维的数组。</p>
-<p>同理，计算这种情况下a的字节数，则是4个字节，因为这种定义，系统给分配的空间就是一个指针，因为就是4个字节。</p>
-<p>接下来，说一说，在什么情况下，会使用上述的两种定义，首先，数组指针的使用。数组指针中可以存放n个指针，因为在定义后，可以将若干个地址放入数组中，然后将数组可以作为参数传递等。</p>
-<p>而对于指向数组的指针，则是一种比较典型的数据类型，比如，<code>a[m][n]</code>是一个2维数组，那么<code>a</code>的数据类型就是<code>(*a)[n]</code>，而<code>a[0]</code>的数据类型则是一个指针<code>*a</code>，这样在二维或者是多维数组作为实参向函数中进行传递时，则可以定义函数的参数类型为<code>(*a)[n]</code>，实参为数组名a。</p>
-<h1>如何将代码暂时存储到远端</h1>
-<p>本地使用git push到远端，从远端下载后，再将远端的代码使用git删除。<br>
+        <h1>Protobuf的安装</h1>
+<p>正确安装方法:<br>[<a href="http://blog.csdn.net/guoyilongedu/article/details/17093811" target="_blank">http://blog.csdn.net/guoyilongedu/article/details/17093811</a>]<br>linux下安装protobuf教程+示例<br>[<a href="http://www.cppblog.com/colorful/archive/2012/05/05/173761.html" target="_blank">http://www.cppblog.com/colorful/archive/2012/05/05/173761.html</a>]<br>Linux 下使用protobuf 几点细节<br>[<a href="http://blog.csdn.net/sky_cn1986/article/details/6092479" target="_blank">http://blog.csdn.net/sky_cn1986/article/details/6092479</a>]</p>
+<h1>Protobuf的使用</h1>
+<p>开源中国 Protobuf的使用<br>[<a href="http://my.oschina.net/macwe/blog/157862" target="_blank">http://my.oschina.net/macwe/blog/157862</a>]</p>
+<h1>与网络编程的结合</h1>
+<p>网络编程思考<br>[<a href="http://blog.csdn.net/ciml/article/details/5753367" target="_blank">http://blog.csdn.net/ciml/article/details/5753367</a>]</p>
+
       
     </div>
     <footer>
       
-        
-          <div class="alignleft">
-            <a href="/2014/02/17/数组和指针问题/#more" class="more-link">Read More</a>
-          </div>
         
         
       
